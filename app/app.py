@@ -2,6 +2,64 @@ import streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import os
+from dotenv import load_dotenv
+import requests
+
+load_dotenv()
+GOOGLE_API_KEY = os.getenv("AIzaSyBXLociqDFXrhyHKRPSo6h0RyFhHKYsEuA")
+GOOGLE_CSE_ID = os.getenv("e0f0ffcd8681e4da4")
+
+def search_entity_info(entity):
+    # Replace the placeholder in the prompt with the entity name
+    query = prompt_template.replace("{company}", entity)
+
+    queries = [
+    f'"{entity}" current valuation',
+    f'"{entity}" market value in USD',
+    f'"{entity}" latest valuation 2024',
+    f'"{entity}" valuation worth'
+    ]
+
+
+    snippets = []
+
+    # Set up parameters for the SerpAPI search
+    params = {
+            "key": "AIzaSyBXLociqDFXrhyHKRPSo6h0RyFhHKYsEuA",
+            "cx": "e0f0ffcd8681e4da4",
+            "q": query,
+        }
+
+    # Perform the search using SerpAPI
+    response = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
+    results = response.json()
+
+    print("Full API response:", results)
+
+    # Check if we have search results
+    if "items" in results:
+            for item in results["items"][:5]:  # Retrieve top 5 results
+                snippet = item.get("snippet", "")
+                title = item.get("title", "")
+
+                # Check if the snippet strictly contains the company name
+                if entity.lower() in snippet.lower() and entity.lower() in title.lower():
+                    snippets.append(snippet)
+
+            # Stop if we have gathered enough relevant snippets
+                if snippets:
+                        break
+
+    # Join snippets and add a period at the end if missing
+    result = " ".join(snippets).strip()
+    if result and not result.endswith("."):
+        result += "."
+    
+    return result if result else "No specific results found for this entity"
+
+
+
 
 # Function to authenticate and return a Google Sheets client
 def authenticate_google_sheets():
@@ -79,9 +137,17 @@ if prompt_template:
     st.write(f"Your query template: `{prompt_template}`")
 
 # Check if both data and prompt are available before fetching
-if data is not None and prompt_template:
+# Ensure we only continue if there is data loaded and a prompt is entered
+# Fetch information button and result display
+if 'data' in locals() and prompt_template:
     if st.button("Fetch Information"):
-        st.write("Processing your request...")  # Placeholder for actual functionality
+        st.write("Processing your request...")
+
+        # Loop through each entity in the chosen column and get search results
+        for entity in data[column_option]:
+            result = search_entity_info(entity)
+            st.write(f"**{entity}**: {result}")
+
 
 # Placeholder section for displaying results (future step)
 st.write("### Results")
