@@ -128,8 +128,15 @@ If you have any questions, feedback, or suggestions, feel free to reach out:
 Author: Vikrant Kawadkar
 Email: vikrantkawadkar2099@gmail.com
 ```
+# Project Working
+This Google Drive folder contains:
 
+A project walkthrough video demonstrating the working of the application.
 
+Downloaded query results in CSV and TXT formats for reference.
+```
+https://drive.google.com/drive/folders/1-Zyg5JMycjNvxj0AHvtRh5KsdxMmn58C?usp=sharing
+```
 
 # License
 This project is licensed under the MIT License.
