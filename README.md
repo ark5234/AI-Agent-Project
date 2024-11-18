@@ -127,7 +127,7 @@ Feel free to raise an issue or submit a pull request for contributions!
 If you have any questions, feedback, or suggestions, feel free to reach out:
 ```
 Author: Vikrant Kawadkar
-Email: your-email@example.com
+Email: vikrantkawadkar2099@gmail.com
 ```
 
 
