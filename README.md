@@ -30,18 +30,17 @@ Export Options: Download extracted results or update Google Sheets.
 
 
 # Setup Instructions
-
-1 Clone the Repository
+1. Clone the Repository
 ```
 git clone https://github.com/ark5234/AI-Agent-Project.git
 cd AI-Agent-Project
 ```
-2️ Install Dependencies
+2️. Install Dependencies
 Ensure you have Python 3.8+ installed. Then, install the required libraries:
 ```
 pip install -r requirements.txt
 ```
-3️ Set Up API Keys
+3️. Set Up API Keys
 Create a .env file in the project directory and add the following keys:
 ```
 GROK_API_KEY=<Your_Grok_API_Key>
@@ -54,7 +53,7 @@ export GROK_API_KEY=<Your_Grok_API_Key>
 export GOOGLE_API_KEY=<Your_Google_API_Key>
 export SEARCH_ENGINE_ID=<Your_Custom_Search_Engine_ID>
 ```
-4️ Run the Application
+4️. Run the Application
 Start the Streamlit dashboard:
 ```
 streamlit run main.py
@@ -90,15 +89,15 @@ Update Google Sheets directly.
 
 # APIs and Tools Used
 
-1️ Grok (xAI)
+1️. Grok (xAI)
 For AI-based natural language query processing.
 Integrated via openai Python library with the grok-beta model.
 
-2️ Google Sheets API
+2️. Google Sheets API
 For reading and updating Google Sheets.
 Integrated using googleapiclient library.
 
-3️ Google Custom Search API
+3️. Google Custom Search API
 For automated web searches to fetch missing data.
 
 
