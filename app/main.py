@@ -3,22 +3,17 @@ import pandas as pd
 import os
 from google_api import authenticate_google_sheets, read_google_sheet
 from googleapiclient.discovery import build
-from openai import OpenAI
+from gemini_api import query_gemini
 
 # Set up your Google CSE API key and search engine ID
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 SEARCH_ENGINE_ID = os.getenv("SEARCH_ENGINE_ID")
 
-# Initialize Grok (xAI) client
-GROK_API_KEY = os.getenv("GROK_API_KEY")
-if not GROK_API_KEY:
-    st.error("The Grok API key is not set. Please set the `GROK_API_KEY` environment variable.")
+# Initialize Google Gemini client
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    st.error("The Gemini API key is not set. Please set the `GEMINI_API_KEY` environment variable.")
     st.stop()
-
-client = OpenAI(
-    api_key=GROK_API_KEY,
-    base_url="https://api.x.ai/v1"  # xAI API base URL
-)
 
 def main():
     st.title("AI Agent for Data-Driven Query Processing")
@@ -102,42 +97,60 @@ def process_and_download(data, main_column):
         # Process query on the data
         result = process_query(data, query, main_column)
         
-        if isinstance(result, pd.DataFrame) and not result.empty:
-            # If result is a valid DataFrame, show the results
-            st.write("Query result:")
-            st.dataframe(result)
+        if isinstance(result, pd.DataFrame):
+            if not result.empty:
+                # If result is a valid DataFrame, show the results
+                st.write("Query result:")
+                st.dataframe(result)
 
-            csv = result.to_csv(index=False)
-            st.download_button(
-                label="Download results as CSV",
-                data=csv,
-                file_name="query_results.csv",
-                mime="text/csv",
-            )
-        elif result is None:
-            # If no data found, perform a web search
-            st.write("No matching data found. Searching the web for more information...")
+                csv = result.to_csv(index=False)
+                st.download_button(
+                    label="Download results as CSV",
+                    data=csv,
+                    file_name="query_results.csv",
+                    mime="text/csv",
+                )
+                return
+            # Empty DataFrame: try web search, then Gemini fallback
+            st.info("No matching rows found locally. Searching the web...")
             web_results = web_search(query)
-            
             if web_results:
                 st.subheader("Web Search Results:")
-                for result in web_results:
-                    st.write(f"**{result['title']}**: [Link]({result['link']})")
-                    st.write(result['snippet'])
-            else:
-                st.write("No relevant web search results found.")
-        else:
-            # If Grok's response is triggered
-            response = query_grok(query, data)
+                for item in web_results:
+                    st.write(f"**{item['title']}**: [Link]({item['link']})")
+                    st.write(item['snippet'])
+                return
+            st.info("No relevant web results found. Asking Gemini for help...")
+            response = query_gemini_ai(query, data)
             if response:
-                st.write("Grok response:")
+                st.write("Gemini response:")
                 st.write(response)
                 st.download_button(
                     label="Download response as TXT",
                     data=response,
-                    file_name="grok_response.txt",
+                    file_name="gemini_response.txt",
                     mime="text/plain",
                 )
+            return
+        # If processing failed, still try fallbacks
+        st.info("Couldn’t process query locally. Trying web search...")
+        web_results = web_search(query)
+        if web_results:
+            st.subheader("Web Search Results:")
+            for item in web_results:
+                st.write(f"**{item['title']}**: [Link]({item['link']})")
+                st.write(item['snippet'])
+            return
+        response = query_gemini_ai(query, data)
+        if response:
+            st.write("Gemini response:")
+            st.write(response)
+            st.download_button(
+                label="Download response as TXT",
+                data=response,
+                file_name="gemini_response.txt",
+                mime="text/plain",
+            )
 
 
 
@@ -177,25 +190,16 @@ def web_search(query):
         return None
 
 
-def query_grok(query, data):
-    """Queries Grok (xAI) for processing and returns a response."""
+def query_gemini_ai(query, data):
+    """Queries Google Gemini for processing and returns a response."""
     data_subset = data.head(50)  # Limit data to first 50 rows for efficiency
     data_dict = data_subset.to_dict(orient="records")
     
     try:
-        response = client.chat.completions.create(
-            model="grok-beta",
-            messages=[{
-                "role": "system", 
-                "content": "You are Grok, an intelligent assistant that can analyze data."
-            }, {
-                "role": "user", 
-                "content": f"The following data is from a CSV file:\n{data_dict}\n\n{query}"
-            }]
-        )
-        return response.choices[0].message.content
+        response = query_gemini(query, GEMINI_API_KEY, data_dict)
+        return response
     except Exception as e:
-        st.error(f"Error querying Grok: {e}")
+        st.error(f"Error querying Gemini: {e}")
         return None
 
 if __name__ == "__main__":

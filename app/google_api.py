@@ -15,8 +15,14 @@ def authenticate_google_sheets():
     creds = None
     # The token.pickle file stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first time.
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
+    # Support token in app folder or project root
+    token_paths = [
+        os.path.join(os.path.dirname(__file__), 'token.pickle'),
+        os.path.join(os.getcwd(), 'token.pickle'),
+    ]
+    token_path = next((p for p in token_paths if os.path.exists(p)), None)
+    if token_path:
+        with open(token_path, 'rb') as token:
             creds = pickle.load(token)
 
     # If no valid credentials available, let the user log in.
@@ -24,15 +30,23 @@ def authenticate_google_sheets():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            if not os.path.exists('credentials.json'):
-                print("Please make sure the 'credentials.json' file is in the correct path.")
+            # Support credentials in app folder or project root
+            cred_paths = [
+                os.path.join(os.path.dirname(__file__), 'credentials.json'),
+                os.path.join(os.getcwd(), 'credentials.json'),
+            ]
+            cred_path = next((p for p in cred_paths if os.path.exists(p)), None)
+            if not cred_path:
+                print("Please add 'credentials.json' to the project root or app folder.")
                 return None
             flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
+                cred_path, SCOPES)
             creds = flow.run_local_server(port=0)
         
         # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
+        # Prefer saving alongside credentials.json
+        save_token_path = os.path.join(os.path.dirname(__file__), 'token.pickle')
+        with open(save_token_path, 'wb') as token:
             pickle.dump(creds, token)
 
     try:
