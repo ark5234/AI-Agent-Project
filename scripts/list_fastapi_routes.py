@@ -2,10 +2,18 @@ import json
 import os
 import sys
 
-# Ensure we can import the FastAPI app
-SERVER_DIR = os.path.join(os.path.dirname(__file__), "..", "pandas-ai", "server")
+# Ensure we can import the FastAPI app from the monorepo path
+# ../packages/pandas-ai/server
+SERVER_DIR = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "packages",
+    "pandas-ai",
+    "server",
+)
 SERVER_DIR = os.path.abspath(SERVER_DIR)
-sys.path.insert(0, SERVER_DIR)
+if SERVER_DIR not in sys.path:
+    sys.path.insert(0, SERVER_DIR)
 
 try:
     from core.server import app  # type: ignore
