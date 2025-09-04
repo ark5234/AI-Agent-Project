@@ -1,0 +1,5 @@
+*.pickle binary
+*.pkl binary
+.env filter=lfs diff=lockable -text
+env/ export-ignore
+ai_agent_env/ export-ignore
