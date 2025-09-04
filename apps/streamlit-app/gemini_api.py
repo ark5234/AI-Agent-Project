@@ -1,36 +1,74 @@
 import google.generativeai as genai
-from langchain.tools import Tool
-from langchain.prompts import PromptTemplate
-from langchain.agents import initialize_agent, AgentType
-from langchain_google_genai import GoogleGenerativeAI
+import pandas as pd
 
 def configure_gemini(api_key):
-    """Configure Google Gemini API with the provided API key."""
     genai.configure(api_key=api_key)
 
 def query_gemini(query, api_key, data=None):
-    """Query Google Gemini API and return a response."""
     try:
         configure_gemini(api_key)
         
-        # Initialize the model
-        model = genai.GenerativeModel('gemini-pro')
+        model_names = [
+            'gemini-1.5-flash',
+            'gemini-1.5-pro', 
+            'gemini-pro',
+            'models/gemini-1.5-flash',
+            'models/gemini-1.5-pro',
+            'models/gemini-pro'
+        ]
         
-        # Prepare the prompt
-        if data:
-            # If data is provided, include it in the context
-            prompt = f"""You are an intelligent AI assistant that can analyze data.
+        model = None
+        for model_name in model_names:
+            try:
+                model = genai.GenerativeModel(model_name)
+                break
+            except Exception:
+                continue
+        
+        if model is None:
+            try:
+                available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                if available_models:
+                    model = genai.GenerativeModel(available_models[0])
+                else:
+                    return "Error: No suitable Gemini models available for content generation."
+            except Exception as e:
+                return f"Error: Could not access Gemini models. {str(e)}"
+        
+        if data is not None:
+            data_analysis = analyze_dataset_automatically(data)
+            
+            prompt = f"""You are an expert data analyst with advanced natural language understanding. 
+Your task is to understand user queries about any dataset and provide accurate, actionable responses.
 
-Data from CSV file:
-{data}
+DATASET ANALYSIS:
+{data_analysis}
 
-User Query: {query}
+USER QUERY: "{query}"
 
-Please provide a helpful response based on the data and query."""
+INSTRUCTIONS:
+1. Analyze the user's query to understand their intent (filtering, counting, analysis, etc.)
+2. Automatically map the query terms to the most relevant columns in the dataset
+3. Handle variations in terminology (e.g., "credit policy" could mean a binary approval column)
+4. For filtering queries, identify the exact records that match the criteria
+5. For counting queries, provide the exact count
+6. For analysis queries, provide insights based on the data
+
+IMPORTANT: 
+- Do not assume column names - work with what's available in the dataset
+- Be flexible with value matching (handle case sensitivity, partial matches)
+- If the query asks to "show" or "display" records, specify exactly which rows match
+- Provide both the answer AND the reasoning behind it
+- If filtering is needed, describe the exact conditions applied
+
+RESPONSE FORMAT:
+- Start with a clear answer to the user's question
+- Explain your analysis process
+- If applicable, mention the number of matching records
+- Be specific about which columns and values you used"""
         else:
-            prompt = f"User Query: {query}"
+            prompt = f"""You are a helpful AI assistant. Please respond to this query: {query}"""
         
-        # Generate response
         response = model.generate_content(prompt)
         
         if response.text:
@@ -41,19 +79,41 @@ Please provide a helpful response based on the data and query."""
     except Exception as e:
         return f"Error querying Gemini: {str(e)}"
 
-def gemini_tool(api_key):
-    """Create a LangChain tool for Gemini API."""
-    return Tool(
-        name="Gemini API",
-        func=lambda query: query_gemini(query, api_key),
-        description="Query Google Gemini for intelligent responses and data analysis"
-    )
-
-def create_gemini_llm(api_key):
-    """Create a LangChain LLM wrapper for Gemini."""
-    configure_gemini(api_key)
-    return GoogleGenerativeAI(
-        model="gemini-pro",
-        google_api_key=api_key,
-        temperature=0.7
-    ) 
+def analyze_dataset_automatically(data):
+    analysis = []
+    
+    analysis.append(f"Dataset Shape: {data.shape[0]} rows, {data.shape[1]} columns")
+    analysis.append(f"Column Names: {', '.join(data.columns)}")
+    
+    analysis.append("\nCOLUMN DETAILS:")
+    for col in data.columns:
+        col_info = []
+        
+        dtype = str(data[col].dtype)
+        col_info.append(f"Type: {dtype}")
+        
+        unique_vals = data[col].dropna().unique()
+        unique_count = len(unique_vals)
+        col_info.append(f"Unique values: {unique_count}")
+        
+        if unique_count <= 10:
+            col_info.append(f"Values: {list(unique_vals)}")
+        elif unique_count <= 50:
+            col_info.append(f"Sample values: {list(unique_vals[:10])}...")
+        else:
+            if pd.api.types.is_numeric_dtype(data[col]):
+                col_info.append(f"Range: {data[col].min()} to {data[col].max()}")
+            else:
+                col_info.append(f"Sample values: {list(unique_vals[:5])}...")
+        
+        null_count = data[col].isnull().sum()
+        if null_count > 0:
+            col_info.append(f"Missing: {null_count}")
+        
+        analysis.append(f"- {col}: {', '.join(col_info)}")
+    
+    analysis.append(f"\nSAMPLE DATA (first 3 rows):")
+    sample_data = data.head(3).to_string()
+    analysis.append(sample_data)
+    
+    return "\n".join(analysis)
