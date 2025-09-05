@@ -8,7 +8,8 @@ import json
 import plotly.express as px
 import plotly.graph_objects as go
 from dotenv import load_dotenv
-from google_api import authenticate_google_sheets, read_google_sheet
+from google_api import authenticate_google_sheets, read_google_sheet, extract_sheet_id_from_url, read_google_sheet_public
+import requests
 from googleapiclient.discovery import build
 from gemini_api import query_gemini
 
@@ -21,6 +22,29 @@ if APP_DIR not in sys.path:
 
 # Load local .env for development (no effect on Streamlit Cloud)
 load_dotenv(os.path.join(APP_DIR, '..', '..', '.env'))
+
+def get_sheet_names(sheet_id, api_key):
+    """Get available sheet names from a Google Spreadsheet."""
+    try:
+        url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}"
+        params = {'key': api_key}
+        
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        
+        data = response.json()
+        sheets = data.get('sheets', [])
+        
+        sheet_names = []
+        for sheet in sheets:
+            properties = sheet.get('properties', {})
+            sheet_name = properties.get('title', 'Unknown')
+            sheet_names.append(sheet_name)
+        
+        return sheet_names
+        
+    except Exception as e:
+        return None
 
 def get_secret(key: str, default: str | None = None) -> str | None:
     """Return a config value, preferring Streamlit Cloud secrets then env vars.
@@ -268,39 +292,75 @@ def handle_google_sheets():
             st.warning("⚠️ Please enter a valid Google Sheets URL.")
             return
 
-        with st.spinner("🔍 Extracting Sheet ID..."):
-            sheet_id = sheet_url.split("/d/")[1].split("/")[0]
+        # Extract sheet ID from URL using helper function
+        sheet_id = extract_sheet_id_from_url(sheet_url)
         
-        sheet_name = st.text_input(
-            "📋 Enter sheet name:",
-            value="Sheet1",
-            help="The name of the specific sheet tab (usually 'Sheet1' for the first tab)"
-        )
+        if not sheet_id:
+            st.error("❌ Invalid Google Sheets URL. Please check the URL format.")
+            return
+        
+        # Check if we have a Google API key
+        api_key = get_secret("GOOGLE_API_KEY")
+        
+        if not api_key:
+            st.error("❌ Google API Key not found. Please configure GOOGLE_API_KEY in your secrets.")
+            return
+        
+        # Try to get available sheet names
+        with st.spinner("🔍 Discovering available sheets..."):
+            available_sheets = get_sheet_names(sheet_id, api_key)
+        
+        if available_sheets:
+            st.success(f"✅ Found {len(available_sheets)} sheets: {', '.join(available_sheets)}")
+            
+            # Let user select from available sheets
+            sheet_name = st.selectbox(
+                "📋 Select sheet:",
+                options=available_sheets,
+                help="Choose the sheet tab you want to analyze"
+            )
+        else:
+            # Fallback to manual input
+            st.warning("⚠️ Could not auto-detect sheets. Please enter the sheet name manually.")
+            sheet_name = st.text_input(
+                "📋 Enter sheet name:",
+                value="Sheet1",
+                help="The name of the specific sheet tab (e.g., 'Sheet1', 'name', etc.)"
+            )
 
         if sheet_name:
-            with st.spinner("🔐 Authenticating with Google Sheets..."):
-                service = authenticate_google_sheets()
-            
-            if service:
-                try:
-                    with st.spinner("📥 Loading data from Google Sheets..."):
-                        range_name = f"{sheet_name}!A:Z"
-                        values = read_google_sheet(service, sheet_id, range_name)
+            try:
+                with st.spinner("📥 Loading data from Google Sheets..."):
+                    range_name = f"{sheet_name}!A:Z"
                     
-                    if values:
-                        headers = values[0]
-                        data = pd.DataFrame(values[1:], columns=headers)
+                    # Try direct API method first for public sheets
+                    values = read_google_sheet_public(sheet_id, range_name, api_key)
+                    
+                    # If direct method fails, try service-based method as fallback
+                    if not values:
+                        service = authenticate_google_sheets()
+                        if service:
+                            values = read_google_sheet(service, sheet_id, range_name)
+                
+                if values and len(values) > 0:
+                    headers = values[0]
+                    data_rows = values[1:] if len(values) > 1 else []
+                    
+                    if data_rows:
+                        data = pd.DataFrame(data_rows, columns=headers)
                         
                         st.success(f"✅ Successfully loaded {len(data)} rows from Google Sheets!")
                         st.markdown("### 📊 Data Preview")
                         st.dataframe(data, height=400)
                         main_column_selection(data)
                     else:
-                        st.error("❌ No data found in the specified range.")
-                except Exception as e:
-                    st.error(f"❌ Error reading data from Google Sheets: {e}")
-            else:
-                st.error("❌ Failed to authenticate with Google Sheets. Please check your credentials.")
+                        st.warning("⚠️ Sheet contains headers but no data rows.")
+                else:
+                    st.error("❌ No data found in the specified sheet. Please check the sheet name.")
+                    
+            except Exception as e:
+                st.error(f"❌ Error reading data from Google Sheets: {str(e)}")
+                st.info("💡 Make sure the sheet is publicly accessible or you have the correct permissions.")
 
 def handle_csv_upload():
     st.markdown("### 📁 Upload Your Data File")
