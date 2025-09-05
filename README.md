@@ -1,222 +1,281 @@
-# 🤖 AI Agent for Data-Driven Query Processing
+# AI-Powered Data Analysis Platform
 
 [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.40.0-red.svg)](https://streamlit.io)
 [![Gemini AI](https://img.shields.io/badge/Gemini-AI-green.svg)](https://ai.google.dev)
 
-## 🌟 Overview
+## Overview
 
-A powerful, adaptive AI-powered data analysis platform that uses Google's Gemini AI to understand and process natural language queries on any dataset. This system automatically adapts to different data structures without requiring hardcoded patterns or manual configuration.
+A comprehensive artificial intelligence platform for automated data analysis, query processing, and visualization. Built with Streamlit and powered by Google's Gemini AI, this application provides intelligent insights from CSV, Excel, and JSON datasets with natural language queries.
 
-### ✨ Key Features
+## Features
 
-- **🧠 Zero-Hardcoding Architecture**: Automatically understands any dataset structure without manual configuration
-- **🗣️ Natural Language Processing**: Ask questions in plain English - AI understands complex queries automatically
-- **📊 Universal Data Support**: Works with any CSV dataset or Google Sheets
-- **🚀 Adaptive Intelligence**: AI-first approach that learns your data structure on the fly
-- **⚡ Fast & Intuitive**: Clean, modern Streamlit interface with instant results
-- **🔍 Smart Fallbacks**: Multi-layered processing with web search integration
-- **Export Options**: Download results as CSV or plain text
-## �️ Technology Stack
+### Core Functionality
+- **Multi-format Data Support**: Process CSV, Excel (xlsx/xls), and JSON files seamlessly
+- **Natural Language Queries**: Ask questions about your data in plain English
+- **AI-Powered Analysis**: Leverages Google Gemini AI for intelligent data interpretation
+- **Smart Visualizations**: Automatically generates appropriate charts based on query context
+- **Performance Optimization**: Implements intelligent caching for faster response times
+- **Google Sheets Integration**: Direct connection to Google Sheets for live data analysis
 
-- **Backend**: Python 3.13, pandas 2.2.3, numpy 2.1.3
-- **AI Engine**: Google Gemini 1.5-Flash/Pro with automatic model fallback
-- **Frontend**: Streamlit 1.40.0 with interactive data visualization
-- **APIs**: Google Sheets API, Google Custom Search API
-- **Environment**: python-dotenv for secure configuration management
+### Advanced Features
+- **Security Framework**: Comprehensive input validation and file size limitations
+- **Error Boundaries**: Robust error handling with graceful degradation
+- **Multi-source Fallback**: Web search integration when local analysis is insufficient
+- **Cloud Deployment Ready**: Pre-configured for Streamlit Cloud with secrets management
+- **Interactive Visualizations**: Plotly-powered charts with hover details and zoom capabilities
 
-## 🚀 Quick Start
+### Supported Visualizations
+- Line charts for time series analysis
+- Bar charts for categorical comparisons
+- Scatter plots for correlation analysis
+- Histograms for distribution analysis
+- Pie charts for summary data
+- Automatic chart type selection based on data characteristics
+
+## Technical Architecture
+
+### Technology Stack
+- **Frontend**: Streamlit 1.40.0 for interactive web interface
+- **Data Processing**: Pandas 2.2.3 with NumPy 2.1.3 for data manipulation
+- **AI Integration**: Google Generative AI 0.8.5 with Gemini 1.5-flash/pro models
+- **Visualizations**: Plotly 5.24.1 for interactive charts
+- **Cloud Services**: Google APIs for Sheets integration and web search
+- **File Processing**: OpenPyXL for Excel support, native JSON parsing
+
+### Performance Features
+- **Response Caching**: 30-minute TTL for AI responses to reduce API calls
+- **Dataset Caching**: 1-hour TTL for dataset analysis results
+- **Lazy Loading**: On-demand chart generation to optimize performance
+- **Memory Management**: Safe processing decorators to handle large datasets
+
+### Security Implementation
+- **File Validation**: 50MB size limit with extension verification
+- **Query Sanitization**: SQL injection prevention and content filtering
+- **Input Validation**: Comprehensive user input checking
+- **Error Isolation**: Safe execution boundaries to prevent crashes
+
+## Installation and Setup
 
 ### Prerequisites
+- Python 3.8 or higher
+- pip package manager
+- Google AI Studio API key
 
-- Python 3.11+ installed
-- Google Cloud Project with enabled APIs
-- Gemini API key from Google AI Studio
+### Local Development Setup
 
-### Installation
-
-1. **Clone the repository**
+1. **Clone the Repository**
    ```bash
    git clone https://github.com/ark5234/AI-Agent-Project.git
    cd AI-Agent-Project
    ```
 
-2. **Install dependencies**
+2. **Install Dependencies**
    ```bash
    pip install -r apps/streamlit-app/requirements.txt
    ```
 
-3. **Configure environment variables**
-   
+3. **Environment Configuration**
    Create a `.env` file in the project root:
    ```env
-   # Required: Gemini AI API Key
    GEMINI_API_KEY=your_gemini_api_key_here
-   
-   # Optional: For Google Sheets and web search
    GOOGLE_API_KEY=your_google_api_key_here
    SEARCH_ENGINE_ID=your_search_engine_id_here
    ```
 
-4. **Run the application**
+4. **Obtain API Keys**
+   - **Gemini API**: Visit [Google AI Studio](https://aistudio.google.com/) to get your API key
+   - **Google API**: Create credentials in [Google Cloud Console](https://console.cloud.google.com/)
+   - **Search Engine**: Set up Custom Search Engine in Google
+
+5. **Run the Application**
    ```bash
-   python -m streamlit run apps/streamlit-app/main.py
+   streamlit run apps/streamlit-app/main.py
    ```
 
-5. **Open your browser** to `http://localhost:8501`
+### Streamlit Cloud Deployment
 
-## 🎯 Usage Examples
+1. **Push to GitHub**
+   Ensure your code is in a GitHub repository
 
-### Natural Language Queries
+2. **Deploy to Streamlit Cloud**
+   - Visit [Streamlit Cloud](https://streamlit.io/cloud)
+   - Connect your GitHub repository
+   - Select `apps/streamlit-app/main.py` as the main file
 
-The AI understands various query patterns automatically:
+3. **Configure Secrets**
+   In your Streamlit Cloud app settings, add secrets in TOML format:
+   ```toml
+   GEMINI_API_KEY = "your_api_key_here"
+   GOOGLE_API_KEY = "your_google_api_key_here"
+   SEARCH_ENGINE_ID = "your_search_engine_id_here"
+   ```
 
-```
-✅ "Show me all records where status is approved"
-✅ "Count how many customers have income above 50000"
-✅ "Find all entries with credit card as loan purpose"
-✅ "Display records where age is between 25 and 35"
-✅ "What percentage of applicants were rejected?"
-```
+## Usage Guide
 
-### Data Sources
+### Basic Data Analysis
 
-- **CSV Upload**: Drag and drop any CSV file
-- **Google Sheets**: Paste your Google Sheets URL
-- **Auto-Detection**: AI automatically understands column types and relationships
+1. **Upload Your Data**
+   - Select "Upload CSV File" option
+   - Choose from supported formats: CSV, Excel, JSON
+   - Review the automatic data preview
 
-## 🏗️ Project Structure
+2. **Ask Natural Language Questions**
+   ```
+   Example queries:
+   - "Show me records where sales > 1000"
+   - "What is the average price by category?"
+   - "Count customers by region"
+   - "Find products with low inventory"
+   ```
+
+3. **Review Results**
+   - View filtered data tables
+   - Examine automatically generated visualizations
+   - Download results in CSV format
+
+### Google Sheets Integration
+
+1. **Select Google Sheets Option**
+2. **Provide Sheet URL**
+   ```
+   https://docs.google.com/spreadsheets/d/your-sheet-id/edit
+   ```
+3. **Specify Sheet Name** (e.g., "Sheet1")
+4. **Analyze Live Data** with the same query interface
+
+### Advanced Query Examples
+
+- **Trend Analysis**: "Show sales trend over time"
+- **Comparison**: "Compare revenue by product category"
+- **Distribution**: "Show age distribution of customers"
+- **Correlation**: "Relationship between price and sales"
+- **Filtering**: "Products launched in 2023 with rating > 4"
+
+## Project Structure
 
 ```
 AI-Agent-Project/
 ├── apps/
-│   └── streamlit-app/           # Main application
-│       ├── main.py              # Streamlit interface & core logic
-│       ├── gemini_api.py        # Gemini AI integration
-│       ├── google_api.py        # Google Sheets API
-│       └── requirements.txt     # Dependencies
-├── .env                         # Environment variables
-├── README.md                    # This file
-└── .gitignore                   # Git ignore rules
+│   └── streamlit-app/
+│       ├── main.py              # Primary application logic
+│       ├── gemini_api.py        # AI integration module
+│       ├── google_api.py        # Google services integration
+│       ├── requirements.txt     # Python dependencies
+│       └── credentials.json     # Google API credentials
+├── .streamlit/
+│   └── secrets.toml            # Cloud deployment secrets template
+├── .env                        # Local environment variables
+├── .gitignore                  # Git ignore patterns
+├── LICENSE                     # MIT license
+└── README.md                   # This documentation
 ```
 
-## 🔧 Configuration
+## API Reference
 
-### API Keys Setup
+### Core Functions
 
-1. **Gemini API Key** (Required)
-   - Visit [Google AI Studio](https://aistudio.google.com/)
-   - Create a new API key
-   - Add to `.env` as `GEMINI_API_KEY`
+#### `validate_csv_file(file)`
+Validates uploaded files for security and format compliance.
+- **Parameters**: file object from Streamlit file uploader
+- **Returns**: tuple (is_valid: bool, message: str)
+- **Security**: Size limits, extension validation, content checking
 
-2. **Google APIs** (Optional)
-   - Enable Google Sheets API and Custom Search API
-   - Create service account credentials
-   - Add keys to `.env`
+#### `process_query(data, query, main_column)`
+Processes natural language queries against dataset.
+- **Parameters**: 
+  - data: pandas DataFrame
+  - query: string query in natural language
+  - main_column: primary column for analysis focus
+- **Returns**: processed DataFrame or analysis results
 
-### Environment Variables
+#### `generate_smart_visualizations(data, query, result_data)`
+Creates appropriate visualizations based on query intent.
+- **Parameters**: 
+  - data: original dataset
+  - query: user query for context
+  - result_data: filtered/processed results
+- **Returns**: Plotly figure object
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `GEMINI_API_KEY` | ✅ Yes | Your Gemini AI API key |
-| `GOOGLE_API_KEY` | ❌ Optional | For Google services |
-| `SEARCH_ENGINE_ID` | ❌ Optional | For web search fallback |
+### Configuration Options
 
-## 🧠 How It Works
+#### Caching Settings
+```python
+@st.cache_data(ttl=1800)  # 30 minutes for AI responses
+@st.cache_data(ttl=3600)  # 1 hour for dataset analysis
+```
 
-### Adaptive Processing Pipeline
+#### Security Parameters
+- Maximum file size: 50MB
+- Supported formats: CSV, XLSX, XLS, JSON
+- Query length limit: 1000 characters
+- SQL injection prevention: Active
 
-1. **Data Ingestion**: Upload CSV or connect Google Sheets
-2. **AI Analysis**: Gemini automatically analyzes dataset structure
-3. **Query Understanding**: Natural language processing interprets user intent
-4. **Smart Execution**: AI generates appropriate pandas operations
-5. **Result Delivery**: Structured data with download options
+## Contributing
 
-### Key Innovations
+### Development Guidelines
 
-- **Zero-Hardcoding**: No predefined patterns or column assumptions
-- **Adaptive Schema Detection**: Automatically understands any data structure
-- **Intelligent Query Mapping**: Maps natural language to precise data operations
-- **Multi-Model Fallback**: Automatic model switching for optimal performance
+1. **Code Style**: Follow PEP 8 Python style guidelines
+2. **Documentation**: Include docstrings for all functions
+3. **Testing**: Test all features before submitting pull requests
+4. **Security**: Maintain input validation and error handling
 
-## � Recent Improvements
+### Pull Request Process
 
-### v2.0 - Adaptive AI Architecture
-- ✅ Eliminated all hardcoded patterns and assumptions
-- ✅ Implemented AI-first query processing
-- ✅ Added automatic dataset structure detection
-- ✅ Enhanced natural language understanding
-- ✅ Streamlined codebase and dependencies
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Commit your changes: `git commit -m 'Add comprehensive feature'`
+4. Push to the branch: `git push origin feature/your-feature-name`
+5. Submit a pull request with detailed description
 
-### Performance Optimizations
-- ⚡ Reduced dependencies from 20+ to 9 core packages
-- ⚡ Improved query processing speed with smart caching
-- ⚡ Enhanced UI responsiveness with async operations
+## Troubleshooting
 
-## 📝 License
+### Common Issues
 
-This project is licensed under the MIT License.
+**Import Errors**
+- Ensure all dependencies are installed: `pip install -r requirements.txt`
+- Verify Python version compatibility (3.8+)
 
-## 🆘 Support
+**API Key Issues**
+- Confirm API keys are correctly set in environment variables or Streamlit secrets
+- Verify API key permissions and quotas in respective consoles
 
-- **Issues**: [GitHub Issues](https://github.com/ark5234/AI-Agent-Project/issues)
-- **Email**: Support available through GitHub
+**File Upload Problems**
+- Check file size (must be under 50MB)
+- Ensure supported file format (CSV, Excel, JSON)
+- Verify file encoding (UTF-8 recommended)
+
+**Performance Issues**
+- Large datasets may require increased memory allocation
+- Consider data sampling for very large files
+- Monitor API usage to avoid rate limiting
+
+### Support
+
+For technical support and bug reports:
+- Create an issue in the GitHub repository
+- Provide detailed error messages and reproduction steps
+- Include system information and Python version
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for complete details.
+
+## Acknowledgments
+
+- Google AI Studio for Gemini API access
+- Streamlit team for the excellent web framework
+- Plotly for interactive visualization capabilities
+- Open source community for various Python libraries
+
+## Author
+
+**Vikrant Kawadkar** (@ark5234)
+- Email: vikrantkawadkar2099@gmail.com
+- GitHub: https://github.com/ark5234
 
 ---
 
-<div align="center">
-<strong>Built with ❤️ using Google Gemini AI</strong>
-<br>
-<em>Making data analysis accessible through natural language</em>
-</div>
-
-1. **Google Sheets API**:
-   - Enable Google Sheets API in Google Cloud Console
-   - Download `credentials.json` and place in `apps/streamlit-app/`
-
-2. **Google Custom Search**:
-   - Create a Custom Search Engine at <https://cse.google.com>
-   - Note the Search Engine ID
-
-3. **Google Gemini**:
-   - Get API key from Google AI Studio
-
-## 🎯 Usage
-
-1. **Select Data Source**: Choose between CSV upload or Google Sheets URL
-2. **Data Preview**: View your data in an interactive table
-3. **Choose Main Column**: Select the primary column for analysis
-4. **Enter Query**: Use natural language or specific filters
-5. **Get Results**: View filtered data, web search results, or AI analysis
-6. **Export**: Download results as CSV or text file
-
-## 🏗️ Backend (Optional)
-
-The project includes a PandasAI backend server:
-
-- **Location**: `packages/pandas-ai/`
-- **Setup**: See `packages/pandas-ai/server/README.md`
-- **Stack**: FastAPI + PostgreSQL + Next.js client
-
-## 📚 Documentation
-
-- **Architecture**: See `ARCHITECTURE.md`
-- **API Routes**: `docs/fastapi_routes.json`
-- **Security**: Don't commit secrets or virtual environments
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## 📄 License
-
-MIT License - see `LICENSE` file for details.
-
-## 👨‍💻 Author
-
-**Vikrant Kawadkar** (@ark5234)
-
-- Email: <vikrantkawadkar2099@gmail.com>
+**Version**: 2.0.0  
+**Last Updated**: September 2025  
+**Compatibility**: Python 3.8+, Streamlit 1.40.0+
