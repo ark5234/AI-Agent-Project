@@ -197,48 +197,133 @@ def secure_read_json(file):
     return pd.read_json(file)
 
 def main():
-    st.title("AI Agent for Data-Driven Query Processing")
+    # Hero section with improved branding
+    st.markdown("""
+    <div style='text-align: center; padding: 2rem 0;'>
+        <h1 style='color: #1f77b4; margin-bottom: 0.5rem;'>🤖 AI Data Analytics Platform</h1>
+        <p style='font-size: 1.2rem; color: #666; margin-bottom: 1rem;'>
+            Transform your data into insights with natural language queries
+        </p>
+        <p style='color: #888; font-size: 0.9rem;'>
+            🚀 <a href='https://ai-data-agent.streamlit.app/' target='_blank' style='text-decoration: none;'>
+                Live Demo Available
+            </a> | 
+            📊 Support CSV, Excel, JSON & Google Sheets | 
+            🧠 Powered by Google Gemini AI
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    input_option = st.radio("Select Data Source", ("Google Sheets URL", "Upload CSV File"))
+    # Feature highlights
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("""
+        **🔍 Smart Analysis**
+        - Natural language queries
+        - AI-powered insights
+        - Automatic visualizations
+        """)
+    with col2:
+        st.markdown("""
+        **📈 Multiple Formats**
+        - CSV, Excel, JSON files
+        - Google Sheets integration
+        - Real-time data processing
+        """)
+    with col3:
+        st.markdown("""
+        **⚡ Fast & Secure**
+        - Intelligent caching
+        - File validation
+        - Privacy-focused design
+        """)
 
-    if input_option == "Google Sheets URL":
+    st.markdown("---")
+
+    # Data source selection with better styling
+    st.subheader("📂 Choose Your Data Source")
+    input_option = st.radio(
+        "Select how you want to provide data:",
+        ("📄 Upload File (CSV, Excel, JSON)", "📊 Google Sheets URL"),
+        help="Choose your preferred method to upload or connect your data"
+    )
+
+    if input_option == "📊 Google Sheets URL":
         handle_google_sheets()
-
-    elif input_option == "Upload CSV File":
+    elif input_option == "📄 Upload File (CSV, Excel, JSON)":
         handle_csv_upload()
 
 def handle_google_sheets():
-    sheet_url = st.text_input("Enter Google Sheets URL")
+    st.markdown("### 🔗 Connect to Google Sheets")
+    st.info("💡 **Tip**: Make sure your Google Sheet is publicly accessible or shared with the service account.")
+    
+    sheet_url = st.text_input(
+        "📝 Enter Google Sheets URL:",
+        placeholder="https://docs.google.com/spreadsheets/d/your-sheet-id/edit",
+        help="Paste the full URL of your Google Sheet"
+    )
+    
     if sheet_url:
         if "docs.google.com/spreadsheets" not in sheet_url:
-            st.warning("Please enter a valid Google Sheets URL.")
+            st.warning("⚠️ Please enter a valid Google Sheets URL.")
             return
 
-        sheet_id = sheet_url.split("/d/")[1].split("/")[0]
-        sheet_name = st.text_input("Enter sheet name (e.g., Sheet1)")
+        with st.spinner("🔍 Extracting Sheet ID..."):
+            sheet_id = sheet_url.split("/d/")[1].split("/")[0]
+        
+        sheet_name = st.text_input(
+            "📋 Enter sheet name:",
+            value="Sheet1",
+            help="The name of the specific sheet tab (usually 'Sheet1' for the first tab)"
+        )
 
         if sheet_name:
-            service = authenticate_google_sheets()
+            with st.spinner("🔐 Authenticating with Google Sheets..."):
+                service = authenticate_google_sheets()
+            
             if service:
                 try:
-                    range_name = f"{sheet_name}!A:Z"
-                    values = read_google_sheet(service, sheet_id, range_name)
+                    with st.spinner("📥 Loading data from Google Sheets..."):
+                        range_name = f"{sheet_name}!A:Z"
+                        values = read_google_sheet(service, sheet_id, range_name)
+                    
                     if values:
                         headers = values[0]
                         data = pd.DataFrame(values[1:], columns=headers)
-                        st.write("Data from Google Sheets:")
-                        st.dataframe(data, height=600)
+                        
+                        st.success(f"✅ Successfully loaded {len(data)} rows from Google Sheets!")
+                        st.markdown("### 📊 Data Preview")
+                        st.dataframe(data, height=400)
                         main_column_selection(data)
                     else:
-                        st.error("No data found in the specified range.")
+                        st.error("❌ No data found in the specified range.")
                 except Exception as e:
-                    st.error(f"Error reading data from Google Sheets: {e}")
+                    st.error(f"❌ Error reading data from Google Sheets: {e}")
             else:
-                st.error("Failed to authenticate with Google Sheets.")
+                st.error("❌ Failed to authenticate with Google Sheets. Please check your credentials.")
 
 def handle_csv_upload():
-    uploaded_file = st.file_uploader("Upload your file", type=["csv", "xlsx", "xls", "json"])
+    st.markdown("### 📁 Upload Your Data File")
+    st.info("💡 **Supported formats**: CSV, Excel (.xlsx, .xls), JSON | **Max size**: 50MB")
+    
+    uploaded_file = st.file_uploader(
+        "🔺 Choose your data file:",
+        type=["csv", "xlsx", "xls", "json"],
+        help="Drag and drop your file here, or click to browse"
+    )
+    
     if uploaded_file is not None:
+        # File info display
+        file_details = {
+            "📄 Filename": uploaded_file.name,
+            "📏 File size": f"{uploaded_file.size / 1024 / 1024:.2f} MB",
+            "🏷️ File type": uploaded_file.type
+        }
+        
+        with st.expander("📋 File Details", expanded=False):
+            for key, value in file_details.items():
+                st.write(f"**{key}**: {value}")
+        
         # Validate file first
         is_valid, message = validate_csv_file(uploaded_file)
         if not is_valid:
@@ -250,7 +335,7 @@ def handle_csv_upload():
         # Determine file type and read accordingly
         file_extension = os.path.splitext(uploaded_file.name)[1].lower()
         
-        with st.spinner(f"📖 Reading {file_extension} file..."):
+        with st.spinner(f"📖 Processing {file_extension} file..."):
             if file_extension == '.csv':
                 data = secure_read_csv(uploaded_file)
             elif file_extension in ['.xlsx', '.xls']:
@@ -258,35 +343,87 @@ def handle_csv_upload():
             elif file_extension == '.json':
                 data = secure_read_json(uploaded_file)
             else:
-                st.error("Unsupported file format")
+                st.error("❌ Unsupported file format")
                 return
         
         if data is not None:
-            st.success(f"📊 Successfully loaded {len(data)} rows and {len(data.columns)} columns")
-            st.write("Data preview:")
-            st.dataframe(data.head(), height=300)
+            # Display success metrics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("📊 Rows", f"{len(data):,}")
+            with col2:
+                st.metric("📋 Columns", len(data.columns))
+            with col3:
+                st.metric("💾 Memory", f"{data.memory_usage(deep=True).sum() / 1024 / 1024:.1f} MB")
+            
+            st.markdown("### 👀 Data Preview")
+            st.dataframe(data.head(10), height=300)
+            
+            # Data quality indicators
+            with st.expander("🔍 Data Quality Summary", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write("**Missing Values:**")
+                    missing_data = data.isnull().sum()
+                    for col, missing in missing_data.items():
+                        if missing > 0:
+                            st.write(f"- {col}: {missing} ({missing/len(data)*100:.1f}%)")
+                with col2:
+                    st.write("**Data Types:**")
+                    for col, dtype in data.dtypes.items():
+                        st.write(f"- {col}: {dtype}")
+            
             main_column_selection(data)
         else:
-            st.error("Failed to read the file. Please check the format and try again.")
+            st.error("❌ Failed to read the file. Please check the format and try again.")
 
 def main_column_selection(data):
     if not data.empty:
-        st.subheader("Step 1: Select Analysis Focus (Optional)")
-        column_names = ["Auto-detect (Recommended)"] + data.columns.tolist()
-        main_column = st.selectbox("Choose focus column or let AI auto-detect:", column_names)
+        st.markdown("---")
+        st.markdown("### 🎯 Analysis Configuration")
+        
+        # Column focus selection
+        st.markdown("#### 📍 Analysis Focus")
+        column_names = ["🤖 Auto-detect (Recommended)"] + data.columns.tolist()
+        main_column = st.selectbox(
+            "Choose a primary column for analysis or let AI auto-detect:",
+            column_names,
+            help="Select a specific column to focus analysis on, or let the AI automatically understand your queries"
+        )
 
-        if main_column == "Auto-detect (Recommended)":
+        if main_column == "🤖 Auto-detect (Recommended)":
             st.success("✨ AI will automatically understand your queries for any column")
             main_column = data.columns[0]
         else:
-            st.success(f"Selected focus column: {main_column}")
-            
-        st.info(f"📊 Dataset: {data.shape[0]} rows, {data.shape[1]} columns")
-        with st.expander("📋 Column Overview"):
+            main_column = main_column  # Remove emoji prefix if user selected specific column
+            st.success(f"🎯 Selected focus column: **{main_column}**")
+        
+        # Dataset overview in cards
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.info(f"📊 **Dataset Size**\n{data.shape[0]:,} rows × {data.shape[1]} columns")
+        with col2:
+            numeric_cols = len(data.select_dtypes(include=['number']).columns)
+            st.info(f"� **Numeric Columns**\n{numeric_cols} available")
+        with col3:
+            text_cols = len(data.select_dtypes(include=['object']).columns)
+            st.info(f"📝 **Text Columns**\n{text_cols} available")
+        
+        # Column details in expandable section
+        with st.expander("📋 Detailed Column Information", expanded=False):
             for col in data.columns:
                 unique_count = data[col].nunique()
                 sample_vals = data[col].dropna().unique()[:5]
-                st.write(f"**{col}**: {unique_count} unique values. Sample: {list(sample_vals)}")
+                missing_count = data[col].isnull().sum()
+                
+                col_info = f"**{col}**"
+                col_info += f" • Type: {data[col].dtype}"
+                col_info += f" • Unique: {unique_count:,}"
+                if missing_count > 0:
+                    col_info += f" • Missing: {missing_count:,}"
+                col_info += f" • Sample: {list(sample_vals)}"
+                
+                st.write(col_info)
         
         process_and_download(data, main_column)
 
@@ -634,10 +771,22 @@ if __name__ == "__main__":
     try:
         # Set page configuration for better UX
         st.set_page_config(
-            page_title="AI Data Agent",
+            page_title="AI Data Analytics Platform",
             page_icon="🤖",
             layout="wide",
-            initial_sidebar_state="expanded"
+            initial_sidebar_state="collapsed",
+            menu_items={
+                'Get help': 'https://github.com/ark5234/AI-Agent-Project',
+                'Report a bug': 'https://github.com/ark5234/AI-Agent-Project/issues',
+                'About': """
+                # AI Data Analytics Platform
+                Transform your data into insights with natural language queries.
+                
+                **Live Demo**: https://ai-data-agent.streamlit.app/
+                **GitHub**: https://github.com/ark5234/AI-Agent-Project
+                **Developer**: @ark5234
+                """
+            }
         )
         
         # Add custom CSS for better styling
@@ -655,10 +804,41 @@ if __name__ == "__main__":
             border-radius: 10px;
             margin: 0.5rem 0;
         }
+        .footer {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            background-color: #0e1117;
+            color: #fafafa;
+            text-align: center;
+            padding: 10px 0;
+            font-size: 0.8rem;
+            z-index: 999;
+        }
+        .footer a {
+            color: #1f77b4;
+            text-decoration: none;
+        }
         </style>
         """, unsafe_allow_html=True)
         
         main()
+        
+        # Add footer
+        st.markdown("---")
+        st.markdown("""
+        <div style='text-align: center; padding: 2rem 0; color: #666;'>
+            <p>🤖 <strong>AI Data Analytics Platform</strong> | 
+            Powered by <a href='https://ai.google.dev' target='_blank'>Google Gemini AI</a> | 
+            Built with <a href='https://streamlit.io' target='_blank'>Streamlit</a></p>
+            <p>
+                <a href='https://github.com/ark5234/AI-Agent-Project' target='_blank'>GitHub</a> | 
+                <a href='https://ai-data-agent.streamlit.app/' target='_blank'>Live Demo</a> | 
+                Made by <a href='https://github.com/ark5234' target='_blank'>@ark5234</a>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
         
     except Exception as e:
         st.error("🚨 Critical Application Error")

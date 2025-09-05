@@ -3,6 +3,13 @@
 [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.40.0-red.svg)](https://streamlit.io)
 [![Gemini AI](https://img.shields.io/badge/Gemini-AI-green.svg)](https://ai.google.dev)
+[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen.svg)](https://ai-data-agent.streamlit.app/)
+
+## 🚀 Live Demo
+
+**Try it now:** [https://ai-data-agent.streamlit.app/](https://ai-data-agent.streamlit.app/)
+
+Upload your data and start asking questions in natural language instantly!
 
 ## Overview
 
