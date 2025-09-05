@@ -1,0 +1,12 @@
+{
+  "include": [
+    "apps"
+  ],
+  "venvPath": ".",
+  "venv": "ai_agent_env",
+  "extraPaths": [
+    "apps/streamlit-app"
+  ],
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none"
+}

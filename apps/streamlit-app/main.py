@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import sys
 import re
 import hashlib
 import json
@@ -11,38 +12,49 @@ from google_api import authenticate_google_sheets, read_google_sheet
 from googleapiclient.discovery import build
 from gemini_api import query_gemini
 
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
+"""
+Runtime/import resilience
+- Ensure the app directory is on sys.path when launched from the repo root
+    (Streamlit usually does this, but we add it explicitly to help both runtime and editors.)
+"""
+APP_DIR = os.path.dirname(__file__)
+if APP_DIR not in sys.path:
+        sys.path.append(APP_DIR)
 
-# Try to get API keys from Streamlit secrets first (for cloud deployment), then from environment variables
-try:
-    # For Streamlit Cloud deployment
-    GOOGLE_API_KEY = st.secrets.get("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY"))
-    SEARCH_ENGINE_ID = st.secrets.get("SEARCH_ENGINE_ID", os.getenv("SEARCH_ENGINE_ID"))
-    GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
-except Exception:
-    # Fallback to environment variables for local development
-    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-    SEARCH_ENGINE_ID = os.getenv("SEARCH_ENGINE_ID")
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# Load local .env for development (no effect on Streamlit Cloud)
+load_dotenv(os.path.join(APP_DIR, '..', '..', '.env'))
+
+def get_secret(key: str, default: str | None = None) -> str | None:
+    """Return a config value, preferring Streamlit Cloud secrets then env vars.
+    - Uses membership test to avoid KeyError and avoid depending on Mapping.get implementation.
+    - Works both locally and on Cloud.
+    """
+    try:
+        if hasattr(st, "secrets") and key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        pass
+    return os.getenv(key, default)
+
+# Resolve API keys
+GOOGLE_API_KEY = get_secret("GOOGLE_API_KEY")
+SEARCH_ENGINE_ID = get_secret("SEARCH_ENGINE_ID")
+GEMINI_API_KEY = get_secret("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
-    st.error("🔑 **Gemini API Key Missing**")
-    st.markdown("""
-    **For Streamlit Cloud Deployment:**
-    1. Go to your app settings (⚙️ gear icon)
-    2. Navigate to **Secrets** tab
-    3. Add your API key in TOML format:
-    ```toml
-    GEMINI_API_KEY = "your_api_key_here"
-    ```
-    
-    **For Local Development:**
-    - Set the environment variable: `GEMINI_API_KEY=your_key`
-    - Or add it to your `.env` file
-    
-    **Get your API key from:** [Google AI Studio](https://aistudio.google.com/)
-    """)
-    st.stop()
+        st.error("🔑 Gemini API Key Missing")
+        st.markdown("""
+        For Streamlit Cloud deployment, set the secret in your app settings and restart:
+        - Settings → Secrets → add this line exactly (without brackets):
+            GEMINI_API_KEY = "your_api_key_here"
+
+        Notes:
+        - The secrets file in your repository (.streamlit/secrets.toml) is ignored by Streamlit Cloud.
+        - After saving secrets in the UI, click 'Restart' on the app for changes to take effect.
+
+        For local development, either set an environment variable or add it to a .env file at the repo root.
+        """)
+        st.stop()
 
 @st.cache_data(ttl=3600)
 def cached_dataset_analysis(data_hash, columns_str, shape_str):
@@ -445,9 +457,9 @@ def basic_fallback_processing(data, query, main_column):
 
 def query_gemini_simple(query):
     try:
-        GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-        if GEMINI_API_KEY:
-            return query_gemini(query, GEMINI_API_KEY)
+        api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
+        if api_key:
+            return query_gemini(query, api_key)
         return None
     except:
         return None
