@@ -1,7 +1,25 @@
 import os
-import requests
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    print("Warning: requests library not available")
+    REQUESTS_AVAILABLE = False
+    requests = None
+
+try:
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
+    GOOGLE_API_AVAILABLE = True
+except ImportError:
+    print("Warning: Google API client libraries not available")
+    GOOGLE_API_AVAILABLE = False
+    # Create dummy functions to prevent import errors
+    def build(*args, **kwargs):
+        return None
+    class HttpError(Exception):
+        pass
 
 def authenticate_google_sheets():
     """
@@ -37,6 +55,10 @@ def read_google_sheet_public(spreadsheet_id, range_name, api_key):
     Read Google Sheet data using direct API calls for public sheets.
     This method works without OAuth2 authentication.
     """
+    if not REQUESTS_AVAILABLE:
+        print("Requests library not available")
+        return None
+        
     try:
         # Construct the URL for the Google Sheets API
         url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{range_name}"
@@ -52,11 +74,14 @@ def read_google_sheet_public(spreadsheet_id, range_name, api_key):
         data = response.json()
         return data.get('values', [])
         
-    except requests.exceptions.RequestException as e:
-        print(f"HTTP error occurred: {e}")
-        return None
     except Exception as e:
-        print(f"An error occurred: {e}")
+        if REQUESTS_AVAILABLE and hasattr(requests, 'exceptions'):
+            if isinstance(e, requests.exceptions.RequestException):
+                print(f"HTTP error occurred: {e}")
+            else:
+                print(f"An error occurred: {e}")
+        else:
+            print(f"An error occurred: {e}")
         return None
 
 def read_google_sheet(service, spreadsheet_id, range_name):
@@ -130,6 +155,10 @@ def fetch_google_search_results(query, num_results=10):
     """
     Fetch Google search results using Custom Search API.
     """
+    if not REQUESTS_AVAILABLE:
+        print("Requests library not available")
+        return []
+        
     try:
         import streamlit as st
         
@@ -172,9 +201,12 @@ def fetch_google_search_results(query, num_results=10):
         
         return results
         
-    except requests.exceptions.RequestException as e:
-        print(f"HTTP error occurred: {e}")
-        return []
     except Exception as e:
-        print(f"An error occurred during search: {e}")
+        if REQUESTS_AVAILABLE and hasattr(requests, 'exceptions'):
+            if isinstance(e, requests.exceptions.RequestException):
+                print(f"HTTP error occurred: {e}")
+            else:
+                print(f"An error occurred during search: {e}")
+        else:
+            print(f"An error occurred during search: {e}")
         return []

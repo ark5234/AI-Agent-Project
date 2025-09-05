@@ -8,7 +8,24 @@ import json
 import plotly.express as px
 import plotly.graph_objects as go
 from dotenv import load_dotenv
-from google_api import authenticate_google_sheets, read_google_sheet, extract_sheet_id_from_url, read_google_sheet_public
+
+# Try to import Google API functions with error handling
+try:
+    from google_api import authenticate_google_sheets, read_google_sheet, extract_sheet_id_from_url, read_google_sheet_public
+    GOOGLE_SHEETS_AVAILABLE = True
+except ImportError as e:
+    st.error(f"Google Sheets functionality unavailable: {e}")
+    GOOGLE_SHEETS_AVAILABLE = False
+    # Create dummy functions to prevent crashes
+    def authenticate_google_sheets():
+        return None
+    def read_google_sheet(service, spreadsheet_id, range_name):
+        return None
+    def extract_sheet_id_from_url(url):
+        return None
+    def read_google_sheet_public(spreadsheet_id, range_name, api_key):
+        return None
+
 import requests
 from googleapiclient.discovery import build
 from gemini_api import query_gemini
@@ -266,13 +283,21 @@ def main():
 
     # Data source selection with better styling
     st.subheader("📂 Choose Your Data Source")
+    
+    # Conditionally include Google Sheets option based on availability
+    if GOOGLE_SHEETS_AVAILABLE:
+        options = ("📄 Upload File (CSV, Excel, JSON)", "📊 Google Sheets URL")
+    else:
+        options = ("📄 Upload File (CSV, Excel, JSON)",)
+        st.info("ℹ️ Google Sheets integration is temporarily unavailable. Please use file upload.")
+    
     input_option = st.radio(
         "Select how you want to provide data:",
-        ("📄 Upload File (CSV, Excel, JSON)", "📊 Google Sheets URL"),
+        options,
         help="Choose your preferred method to upload or connect your data"
     )
 
-    if input_option == "📊 Google Sheets URL":
+    if input_option == "📊 Google Sheets URL" and GOOGLE_SHEETS_AVAILABLE:
         handle_google_sheets()
     elif input_option == "📄 Upload File (CSV, Excel, JSON)":
         handle_csv_upload()
