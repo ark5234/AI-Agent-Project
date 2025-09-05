@@ -12,11 +12,9 @@ from google_api import authenticate_google_sheets, read_google_sheet
 from googleapiclient.discovery import build
 from gemini_api import query_gemini
 
-"""
-Runtime/import resilience
-- Ensure the app directory is on sys.path when launched from the repo root
-    (Streamlit usually does this, but we add it explicitly to help both runtime and editors.)
-"""
+# Runtime/import resilience
+# - Ensure the app directory is on sys.path when launched from the repo root
+#   (Streamlit usually does this, but we add it explicitly to help both runtime and editors.)
 APP_DIR = os.path.dirname(__file__)
 if APP_DIR not in sys.path:
         sys.path.append(APP_DIR)
@@ -34,7 +32,21 @@ def get_secret(key: str, default: str | None = None) -> str | None:
             return st.secrets[key]
     except Exception:
         pass
-    return os.getenv(key, default)
+    # Local env var or .env
+    val = os.getenv(key, default)
+    if val:
+        return val
+    # Optional local secrets file support for development only
+    try:
+        local_secrets_path = os.path.join(os.path.dirname(APP_DIR), ".streamlit", "secrets.toml")
+        if os.path.exists(local_secrets_path):
+            import tomllib  # py311+
+            with open(local_secrets_path, "rb") as f:
+                data = tomllib.load(f)
+            return data.get(key, default)
+    except Exception:
+        pass
+    return default
 
 # Resolve API keys
 GOOGLE_API_KEY = get_secret("GOOGLE_API_KEY")
@@ -54,6 +66,23 @@ if not GEMINI_API_KEY:
 
         For local development, either set an environment variable or add it to a .env file at the repo root.
         """)
+        # Minimal diagnostics (no secret values shown)
+        try:
+            has_secrets = hasattr(st, "secrets")
+            in_st_secrets = False
+            if has_secrets:
+                try:
+                    in_st_secrets = ("GEMINI_API_KEY" in st.secrets)
+                except Exception:
+                    in_st_secrets = False
+            has_env = bool(os.getenv("GEMINI_API_KEY"))
+            local_secrets_path = os.path.join(os.path.dirname(APP_DIR), ".streamlit", "secrets.toml")
+            has_local_secrets = os.path.exists(local_secrets_path)
+            st.info(
+                f"Diagnostics — st.secrets available: {has_secrets}; key in secrets: {in_st_secrets}; env var present: {has_env}; local secrets file: {has_local_secrets}"
+            )
+        except Exception:
+            pass
         st.stop()
 
 @st.cache_data(ttl=3600)
