@@ -118,8 +118,8 @@ def secure_read_csv(file):
         except Exception:
             # Final fallback
             file.seek(0)
-            data = pd.read_csv(file, encoding="utf-8", errors="ignore")
-            st.warning("⚠️ Some characters were ignored due to encoding issues.")
+            data = pd.read_csv(file, encoding="utf-8", on_bad_lines='skip')
+            st.warning("⚠️ Some problematic lines were skipped due to encoding issues.")
             return data
 
 @safe_data_processing
@@ -133,15 +133,6 @@ def secure_read_json(file):
     return pd.read_json(file)
 
 def main():
-    st.title("AI Agent for Data-Driven Query Processing")
-
-    input_option = st.radio("Select Data Source", ("Google Sheets URL", "Upload CSV File"))
-
-    if input_option == "Google Sheets URL":
-        handle_google_sheets()
-
-    elif input_option == "Upload CSV File":
-        handle_csv_upload()
     st.title("AI Agent for Data-Driven Query Processing")
 
     input_option = st.radio("Select Data Source", ("Google Sheets URL", "Upload CSV File"))
@@ -551,29 +542,6 @@ def create_auto_chart(data):
     return None
 
 def query_gemini_ai(query, data):
-    try:
-        # Generate hashes for caching
-        data_hash = generate_data_hash(data)
-        data_context = get_data_context(data)
-        query_hash = generate_query_hash(query, data_context)
-        
-        # Check cache first
-        cached_result = cached_ai_response(query_hash, data_hash)
-        if cached_result:
-            st.success("⚡ Retrieved from cache (faster response)")
-            return cached_result
-        
-        # If not in cache, make API call
-        response = query_gemini(query, GEMINI_API_KEY, data)
-        
-        # Store in cache for future use
-        if response:
-            cached_ai_response(query_hash, data_hash)
-            
-        return response
-    except Exception as e:
-        st.error(f"Error querying Gemini: {e}")
-        return None
     try:
         # Generate hashes for caching
         data_hash = generate_data_hash(data)
