@@ -10,7 +10,6 @@ except ImportError:
 
 try:
     from googleapiclient.discovery import build
-    from googleapiclient.errors import HttpError
     GOOGLE_API_AVAILABLE = True
 except ImportError:
     print("Warning: Google API client libraries not available")
@@ -18,8 +17,6 @@ except ImportError:
     # Create dummy functions to prevent import errors
     def build(*args, **kwargs):
         return None
-    class HttpError(Exception):
-        pass
 
 def authenticate_google_sheets():
     """
