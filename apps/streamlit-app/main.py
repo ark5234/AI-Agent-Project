@@ -13,12 +13,35 @@ from gemini_api import query_gemini
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-SEARCH_ENGINE_ID = os.getenv("SEARCH_ENGINE_ID")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# Try to get API keys from Streamlit secrets first (for cloud deployment), then from environment variables
+try:
+    # For Streamlit Cloud deployment
+    GOOGLE_API_KEY = st.secrets.get("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY"))
+    SEARCH_ENGINE_ID = st.secrets.get("SEARCH_ENGINE_ID", os.getenv("SEARCH_ENGINE_ID"))
+    GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY"))
+except Exception:
+    # Fallback to environment variables for local development
+    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+    SEARCH_ENGINE_ID = os.getenv("SEARCH_ENGINE_ID")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
-    st.error("The Gemini API key is not set. Please set the `GEMINI_API_KEY` environment variable.")
+    st.error("🔑 **Gemini API Key Missing**")
+    st.markdown("""
+    **For Streamlit Cloud Deployment:**
+    1. Go to your app settings (⚙️ gear icon)
+    2. Navigate to **Secrets** tab
+    3. Add your API key in TOML format:
+    ```toml
+    GEMINI_API_KEY = "your_api_key_here"
+    ```
+    
+    **For Local Development:**
+    - Set the environment variable: `GEMINI_API_KEY=your_key`
+    - Or add it to your `.env` file
+    
+    **Get your API key from:** [Google AI Studio](https://aistudio.google.com/)
+    """)
     st.stop()
 
 @st.cache_data(ttl=3600)
