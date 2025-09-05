@@ -2,6 +2,10 @@ import streamlit as st
 import pandas as pd
 import os
 import re
+import hashlib
+import json
+import plotly.express as px
+import plotly.graph_objects as go
 from dotenv import load_dotenv
 from google_api import authenticate_google_sheets, read_google_sheet
 from googleapiclient.discovery import build
@@ -17,7 +21,127 @@ if not GEMINI_API_KEY:
     st.error("The Gemini API key is not set. Please set the `GEMINI_API_KEY` environment variable.")
     st.stop()
 
+@st.cache_data(ttl=3600)
+def cached_dataset_analysis(data_hash, columns_str, shape_str):
+    """Cache dataset analysis for 1 hour to improve performance"""
+    return None
+
+@st.cache_data(ttl=1800)
+def cached_ai_response(query_hash, data_context_hash):
+    """Cache AI responses for 30 minutes to avoid redundant API calls"""
+    return None
+
+def generate_data_hash(data):
+    """Generate a hash for the dataset to enable caching"""
+    try:
+        data_str = data.to_string()
+        return hashlib.md5(data_str.encode()).hexdigest()[:16]
+    except:
+        return hashlib.md5(str(data.shape).encode()).hexdigest()[:16]
+
+def generate_query_hash(query, data_context):
+    """Generate a hash for query + context combination"""
+    combined = f"{query}_{str(data_context)}"
+    return hashlib.md5(combined.encode()).hexdigest()[:16]
+
+def validate_csv_file(file):
+    """Comprehensive file validation for security and performance"""
+    if file is None:
+        return False, "No file provided"
+    
+    # Size validation (50MB limit)
+    max_size = 50 * 1024 * 1024
+    if file.size > max_size:
+        return False, f"File too large ({file.size / 1024 / 1024:.1f}MB). Maximum allowed: 50MB"
+    
+    # Extension validation
+    allowed_extensions = ['.csv', '.xlsx', '.xls', '.json']
+    file_extension = os.path.splitext(file.name)[1].lower()
+    if file_extension not in allowed_extensions:
+        return False, f"Unsupported file format: {file_extension}. Allowed: {', '.join(allowed_extensions)}"
+    
+    return True, "File validation passed"
+
+def validate_query_input(query):
+    """Validate user query for security and quality"""
+    if not query or len(query.strip()) == 0:
+        return False, "Query cannot be empty"
+    
+    if len(query) > 1000:
+        return False, "Query too long (max 1000 characters)"
+    
+    # Basic SQL injection prevention
+    dangerous_patterns = ['DROP', 'DELETE', 'INSERT', 'UPDATE', 'ALTER', 'CREATE', 'TRUNCATE']
+    query_upper = query.upper()
+    for pattern in dangerous_patterns:
+        if pattern in query_upper:
+            return False, f"Query contains potentially dangerous keyword: {pattern}"
+    
+    return True, "Query validation passed"
+
+def safe_data_processing(func):
+    """Decorator for safe data processing with error boundaries"""
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except MemoryError:
+            st.error("⚠️ Dataset too large for processing. Please try with a smaller file.")
+            return None
+        except pd.errors.EmptyDataError:
+            st.error("📊 The uploaded file appears to be empty.")
+            return None
+        except pd.errors.ParserError as e:
+            st.error(f"📝 File parsing error: {str(e)}")
+            return None
+        except UnicodeDecodeError:
+            st.error("🔤 Text encoding error. Please ensure your file is properly encoded.")
+            return None
+        except Exception as e:
+            st.error(f"❌ Unexpected error: {str(e)}")
+            return None
+    return wrapper
+
+@safe_data_processing
+def secure_read_csv(file):
+    """Safely read CSV with comprehensive error handling"""
+    try:
+        # Try UTF-8 first
+        data = pd.read_csv(file, encoding="utf-8")
+        return data
+    except UnicodeDecodeError:
+        try:
+            # Fallback to latin1
+            file.seek(0)  # Reset file pointer
+            data = pd.read_csv(file, encoding="latin1")
+            st.warning("⚠️ File encoding detected as Latin1. Some characters may not display correctly.")
+            return data
+        except Exception:
+            # Final fallback
+            file.seek(0)
+            data = pd.read_csv(file, encoding="utf-8", errors="ignore")
+            st.warning("⚠️ Some characters were ignored due to encoding issues.")
+            return data
+
+@safe_data_processing
+def secure_read_excel(file):
+    """Safely read Excel files with error handling"""
+    return pd.read_excel(file, engine='openpyxl')
+
+@safe_data_processing
+def secure_read_json(file):
+    """Safely read JSON files with error handling"""
+    return pd.read_json(file)
+
 def main():
+    st.title("AI Agent for Data-Driven Query Processing")
+
+    input_option = st.radio("Select Data Source", ("Google Sheets URL", "Upload CSV File"))
+
+    if input_option == "Google Sheets URL":
+        handle_google_sheets()
+
+    elif input_option == "Upload CSV File":
+        handle_csv_upload()
     st.title("AI Agent for Data-Driven Query Processing")
 
     input_option = st.radio("Select Data Source", ("Google Sheets URL", "Upload CSV File"))
@@ -58,23 +182,37 @@ def handle_google_sheets():
                 st.error("Failed to authenticate with Google Sheets.")
 
 def handle_csv_upload():
-    uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
+    uploaded_file = st.file_uploader("Upload your file", type=["csv", "xlsx", "xls", "json"])
     if uploaded_file is not None:
-        try:
-            data = pd.read_csv(uploaded_file, encoding="utf-8")
-            st.write("Data from uploaded CSV:")
-            st.dataframe(data, height=600)
+        # Validate file first
+        is_valid, message = validate_csv_file(uploaded_file)
+        if not is_valid:
+            st.error(f"❌ {message}")
+            return
+        
+        st.success(f"✅ {message}")
+        
+        # Determine file type and read accordingly
+        file_extension = os.path.splitext(uploaded_file.name)[1].lower()
+        
+        with st.spinner(f"📖 Reading {file_extension} file..."):
+            if file_extension == '.csv':
+                data = secure_read_csv(uploaded_file)
+            elif file_extension in ['.xlsx', '.xls']:
+                data = secure_read_excel(uploaded_file)
+            elif file_extension == '.json':
+                data = secure_read_json(uploaded_file)
+            else:
+                st.error("Unsupported file format")
+                return
+        
+        if data is not None:
+            st.success(f"📊 Successfully loaded {len(data)} rows and {len(data.columns)} columns")
+            st.write("Data preview:")
+            st.dataframe(data.head(), height=300)
             main_column_selection(data)
-        except UnicodeDecodeError:
-            try:
-                data = pd.read_csv(uploaded_file, encoding="latin1")
-                st.write("Data from uploaded CSV:")
-                st.dataframe(data, height=600)
-                main_column_selection(data)
-            except Exception as e:
-                st.error(f"Error reading CSV file: {e}")
-        except Exception as e:
-            st.error(f"Error reading CSV file: {e}")
+        else:
+            st.error("Failed to read the file. Please check the format and try again.")
 
 def main_column_selection(data):
     if not data.empty:
@@ -98,15 +236,17 @@ def main_column_selection(data):
         process_and_download(data, main_column)
 
 def process_and_download(data, main_column):
-    # Set adaptive placeholder text
     placeholder_text = f"e.g., Show records where [column] is [value], Count [category], Find [condition]"
-    
     query = st.text_input(f"Enter your query (AI will understand automatically):", placeholder=placeholder_text)
-    
-    # Add optional debug mode
     debug_mode = st.checkbox("🔍 Debug Mode (Show AI analysis process)", value=False)
     
     if query:
+        # Validate query first
+        is_valid_query, validation_message = validate_query_input(query)
+        if not is_valid_query:
+            st.error(f"❌ Query validation failed: {validation_message}")
+            return
+        
         if debug_mode:
             st.expander("🔍 Dataset Info", expanded=True).write(f"""
             **Available Columns:** {list(data.columns)}
@@ -114,7 +254,6 @@ def process_and_download(data, main_column):
             **Column Types:** {dict(data.dtypes)}
             """)
         
-        # Process query with fully adaptive AI
         result = process_query(data, query, main_column)
         
         if isinstance(result, pd.DataFrame):
@@ -122,6 +261,14 @@ def process_and_download(data, main_column):
                 # If result is a valid DataFrame, show the results
                 st.write("Query result:")
                 st.dataframe(result)
+
+                # Generate smart visualizations
+                with st.expander("📊 Data Visualization", expanded=True):
+                    chart = generate_smart_visualizations(data, query, result)
+                    if chart:
+                        st.plotly_chart(chart, use_container_width=True)
+                    else:
+                        st.info("💡 Tip: Try queries like 'show trend', 'compare categories', or 'distribution' for automatic charts")
 
                 csv = result.to_csv(index=False)
                 st.download_button(
@@ -311,13 +458,180 @@ def web_search(query):
         st.error(f"Error during web search: {e}")
         return None
 
+def generate_smart_visualizations(data, query, result_data):
+    """Generate intelligent visualizations based on query intent and data"""
+    query_lower = query.lower()
+    
+    try:
+        # Determine visualization type based on query keywords
+        if any(word in query_lower for word in ['trend', 'over time', 'timeline', 'time series']):
+            return create_time_series_chart(result_data)
+        elif any(word in query_lower for word in ['distribution', 'histogram', 'frequency']):
+            return create_distribution_chart(result_data)
+        elif any(word in query_lower for word in ['compare', 'comparison', 'vs', 'versus']):
+            return create_comparison_chart(result_data)
+        elif any(word in query_lower for word in ['correlation', 'relationship', 'scatter']):
+            return create_correlation_chart(result_data)
+        elif any(word in query_lower for word in ['count', 'total', 'sum', 'aggregate']):
+            return create_summary_chart(result_data)
+        else:
+            # Default: smart auto-detection based on data types
+            return create_auto_chart(result_data)
+    except Exception as e:
+        st.warning(f"Could not generate visualization: {e}")
+        return None
+
+def create_time_series_chart(data):
+    """Create time series visualization"""
+    date_cols = data.select_dtypes(include=['datetime64']).columns
+    numeric_cols = data.select_dtypes(include=['number']).columns
+    
+    if len(date_cols) > 0 and len(numeric_cols) > 0:
+        fig = px.line(data, x=date_cols[0], y=numeric_cols[0], 
+                     title=f"Time Series: {numeric_cols[0]} over {date_cols[0]}")
+        return fig
+    return None
+
+def create_distribution_chart(data):
+    """Create distribution histogram"""
+    numeric_cols = data.select_dtypes(include=['number']).columns
+    
+    if len(numeric_cols) > 0:
+        fig = px.histogram(data, x=numeric_cols[0], 
+                          title=f"Distribution of {numeric_cols[0]}")
+        return fig
+    return None
+
+def create_comparison_chart(data):
+    """Create comparison bar chart"""
+    categorical_cols = data.select_dtypes(include=['object', 'category']).columns
+    numeric_cols = data.select_dtypes(include=['number']).columns
+    
+    if len(categorical_cols) > 0 and len(numeric_cols) > 0:
+        fig = px.bar(data, x=categorical_cols[0], y=numeric_cols[0],
+                    title=f"{numeric_cols[0]} by {categorical_cols[0]}")
+        return fig
+    return None
+
+def create_correlation_chart(data):
+    """Create scatter plot for correlation"""
+    numeric_cols = data.select_dtypes(include=['number']).columns
+    
+    if len(numeric_cols) >= 2:
+        fig = px.scatter(data, x=numeric_cols[0], y=numeric_cols[1],
+                        title=f"Correlation: {numeric_cols[0]} vs {numeric_cols[1]}")
+        return fig
+    return None
+
+def create_summary_chart(data):
+    """Create summary chart for aggregated data"""
+    if len(data) <= 20:  # Small dataset - show all values
+        categorical_cols = data.select_dtypes(include=['object', 'category']).columns
+        numeric_cols = data.select_dtypes(include=['number']).columns
+        
+        if len(categorical_cols) > 0 and len(numeric_cols) > 0:
+            fig = px.pie(data, names=categorical_cols[0], values=numeric_cols[0],
+                        title=f"Summary: {numeric_cols[0]} by {categorical_cols[0]}")
+            return fig
+    return None
+
+def create_auto_chart(data):
+    """Automatically choose best chart type based on data"""
+    numeric_cols = data.select_dtypes(include=['number']).columns
+    categorical_cols = data.select_dtypes(include=['object', 'category']).columns
+    
+    # Priority: scatter for 2+ numeric, bar for 1 categorical + 1 numeric
+    if len(numeric_cols) >= 2:
+        return create_correlation_chart(data)
+    elif len(categorical_cols) > 0 and len(numeric_cols) > 0:
+        return create_comparison_chart(data)
+    elif len(numeric_cols) > 0:
+        return create_distribution_chart(data)
+    
+    return None
+
 def query_gemini_ai(query, data):
     try:
+        # Generate hashes for caching
+        data_hash = generate_data_hash(data)
+        data_context = get_data_context(data)
+        query_hash = generate_query_hash(query, data_context)
+        
+        # Check cache first
+        cached_result = cached_ai_response(query_hash, data_hash)
+        if cached_result:
+            st.success("⚡ Retrieved from cache (faster response)")
+            return cached_result
+        
+        # If not in cache, make API call
         response = query_gemini(query, GEMINI_API_KEY, data)
+        
+        # Store in cache for future use
+        if response:
+            cached_ai_response(query_hash, data_hash)
+            
+        return response
+    except Exception as e:
+        st.error(f"Error querying Gemini: {e}")
+        return None
+    try:
+        # Generate hashes for caching
+        data_hash = generate_data_hash(data)
+        data_context = get_data_context(data)
+        query_hash = generate_query_hash(query, data_context)
+        
+        # Check cache first
+        cached_result = cached_ai_response(query_hash, data_hash)
+        if cached_result:
+            st.success("⚡ Retrieved from cache (faster response)")
+            return cached_result
+        
+        # If not in cache, make API call
+        response = query_gemini(query, GEMINI_API_KEY, data)
+        
+        # Store in cache for future use
+        if response:
+            cached_ai_response(query_hash, data_hash)
+            
         return response
     except Exception as e:
         st.error(f"Error querying Gemini: {e}")
         return None
 
 if __name__ == "__main__":
-    main()
+    try:
+        # Set page configuration for better UX
+        st.set_page_config(
+            page_title="AI Data Agent",
+            page_icon="🤖",
+            layout="wide",
+            initial_sidebar_state="expanded"
+        )
+        
+        # Add custom CSS for better styling
+        st.markdown("""
+        <style>
+        .main > div {
+            padding-top: 1rem;
+        }
+        .stAlert > div {
+            border-radius: 10px;
+        }
+        .metric-card {
+            background-color: #f0f2f6;
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 0.5rem 0;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        main()
+        
+    except Exception as e:
+        st.error("🚨 Critical Application Error")
+        st.error(f"The application encountered an unexpected error: {str(e)}")
+        st.info("Please refresh the page and try again. If the problem persists, contact support.")
+        
+        if st.checkbox("🔍 Show technical details"):
+            st.code(str(e), language="python")
