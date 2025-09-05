@@ -72,6 +72,11 @@ def read_google_sheet_public(spreadsheet_id, range_name, api_key):
             'valueRenderOption': 'FORMATTED_VALUE'
         }
         
+        # Double-check requests availability before using it
+        if not REQUESTS_AVAILABLE or requests is None:
+            print("Requests library not available for API call")
+            return None
+        
         response = requests.get(url, params=params)
         response.raise_for_status()
         
@@ -119,11 +124,12 @@ def read_google_sheet(service, spreadsheet_id, range_name):
         
         return read_google_sheet_public(spreadsheet_id, range_name, api_key)
         
-    except HttpError as err:
-        print(f"An error occurred: {err}")
-        return None
     except Exception as e:
-        print(f"An error occurred: {e}")
+        # Handle both HttpError and other exceptions
+        if GOOGLE_API_AVAILABLE and 'HttpError' in str(type(e).__name__):
+            print(f"Google Sheets API error: {e}")
+        else:
+            print(f"An error occurred: {e}")
         return None
 
 def extract_sheet_id_from_url(url):
@@ -184,6 +190,11 @@ def fetch_google_search_results(query, num_results=10):
             'q': query,
             'num': min(num_results, 10)  # API limit is 10 per request
         }
+        
+        # Double-check requests availability before using it
+        if not REQUESTS_AVAILABLE or requests is None:
+            print("Requests library not available for API call")
+            return []
         
         response = requests.get(url, params=params)
         response.raise_for_status()
