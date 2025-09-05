@@ -26,6 +26,10 @@ def authenticate_google_sheets():
     Authenticate with Google Sheets using API key instead of OAuth2.
     This is simpler and works better for public sheets.
     """
+    if not GOOGLE_API_AVAILABLE:
+        print("Google API client libraries not available")
+        return None
+        
     try:
         # Get API key from environment or Streamlit secrets
         import streamlit as st
@@ -75,13 +79,8 @@ def read_google_sheet_public(spreadsheet_id, range_name, api_key):
         return data.get('values', [])
         
     except Exception as e:
-        if REQUESTS_AVAILABLE and hasattr(requests, 'exceptions'):
-            if isinstance(e, requests.exceptions.RequestException):
-                print(f"HTTP error occurred: {e}")
-            else:
-                print(f"An error occurred: {e}")
-        else:
-            print(f"An error occurred: {e}")
+        # Simple error handling that works regardless of requests availability
+        print(f"An error occurred: {e}")
         return None
 
 def read_google_sheet(service, spreadsheet_id, range_name):
@@ -202,11 +201,6 @@ def fetch_google_search_results(query, num_results=10):
         return results
         
     except Exception as e:
-        if REQUESTS_AVAILABLE and hasattr(requests, 'exceptions'):
-            if isinstance(e, requests.exceptions.RequestException):
-                print(f"HTTP error occurred: {e}")
-            else:
-                print(f"An error occurred during search: {e}")
-        else:
-            print(f"An error occurred during search: {e}")
+        # Simple error handling that works regardless of requests availability
+        print(f"An error occurred during search: {e}")
         return []
