@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io
 import os
 import sys
 import re
@@ -7,38 +8,38 @@ import hashlib
 import json
 import plotly.express as px
 import plotly.graph_objects as go
+from typing import Optional, List, Any, Union
 from dotenv import load_dotenv
 
-# Try to import Google API functions with error handling
+# Import Google API functions with proper type handling
 try:
-    from google_api import authenticate_google_sheets, read_google_sheet, extract_sheet_id_from_url, read_google_sheet_public
+    from google_api import (  # type: ignore
+        authenticate_google_sheets,  # type: ignore
+        read_google_sheet,  # type: ignore
+        extract_sheet_id_from_url,  # type: ignore
+        read_google_sheet_public  # type: ignore
+    )
     GOOGLE_SHEETS_AVAILABLE = True
-except ImportError as e:
-    st.error(f"Google Sheets functionality unavailable: {e}")
+except ImportError:
     GOOGLE_SHEETS_AVAILABLE = False
-    # Create dummy functions to prevent crashes
-    def authenticate_google_sheets():
+    def authenticate_google_sheets() -> None:
         return None
-    def read_google_sheet(service, spreadsheet_id, range_name):
+    def read_google_sheet(service: Any, spreadsheet_id: str, range_name: str) -> Optional[List[List[str]]]:
         return None
-    def extract_sheet_id_from_url(url):
+    def extract_sheet_id_from_url(url: str) -> Optional[str]:
         return None
-    def read_google_sheet_public(spreadsheet_id, range_name, api_key):
+    def read_google_sheet_public(spreadsheet_id: str, range_name: str, api_key: str) -> Optional[List[List[str]]]:
         return None
 
 import requests
 from googleapiclient.discovery import build
 from gemini_api import query_gemini
 
-# Runtime/import resilience
-# - Ensure the app directory is on sys.path when launched from the repo root
-#   (Streamlit usually does this, but we add it explicitly to help both runtime and editors.)
 APP_DIR = os.path.dirname(__file__)
 if APP_DIR not in sys.path:
-        sys.path.append(APP_DIR)
+    sys.path.append(APP_DIR)
 
-# Load local .env for development (no effect on Streamlit Cloud)
-load_dotenv(os.path.join(APP_DIR, '..', '..', '.env'))
+load_dotenv()
 
 def get_sheet_names(sheet_id, api_key):
     """Get available sheet names from a Google Spreadsheet."""
@@ -130,24 +131,6 @@ if not GEMINI_API_KEY:
 def cached_dataset_analysis(data_hash, columns_str, shape_str):
     """Cache dataset analysis for 1 hour to improve performance"""
     return None
-
-@st.cache_data(ttl=1800)
-def cached_ai_response(query_hash, data_context_hash):
-    """Cache AI responses for 30 minutes to avoid redundant API calls"""
-    return None
-
-def generate_data_hash(data):
-    """Generate a hash for the dataset to enable caching"""
-    try:
-        data_str = data.to_string()
-        return hashlib.md5(data_str.encode()).hexdigest()[:16]
-    except:
-        return hashlib.md5(str(data.shape).encode()).hexdigest()[:16]
-
-def generate_query_hash(query, data_context):
-    """Generate a hash for query + context combination"""
-    combined = f"{query}_{str(data_context)}"
-    return hashlib.md5(combined.encode()).hexdigest()[:16]
 
 def validate_csv_file(file):
     """Comprehensive file validation for security and performance"""
@@ -600,119 +583,103 @@ def process_and_download(data, main_column):
 
 
 
-def process_query(data, query, main_column):
+def process_query(data: pd.DataFrame, query: str, main_column: str) -> Optional[pd.DataFrame]:
+    """Optimized query processing with fast pattern matching first, then AI fallback."""
     try:
-        st.info("🤖 Analyzing your query with AI...")
+        # Fast pattern matching first (much faster than AI)
+        fast_result = optimized_pattern_matching(data, query)
+        if fast_result is not None and not fast_result.empty:
+            return fast_result
         
-        data_context = get_data_context(data)
+        # AI processing only if pattern matching fails
+        st.info("🤖 Using AI for complex analysis...")
         ai_response = query_gemini_ai(query, data)
         
-        if ai_response and "no suitable" not in ai_response.lower() and "error" not in ai_response.lower():
-            structured_result = extract_structured_data(ai_response, data, query)
-            
-            if structured_result is not None and not structured_result.empty:
-                st.write("🎯 **AI Analysis Result:**")
-                st.write(ai_response)
-                return structured_result
-            else:
-                st.write("🤖 **AI Analysis:**")
-                st.write(ai_response)
-                return pd.DataFrame()
+        if ai_response and "error" not in ai_response.lower():
+            st.write("🤖 **AI Analysis:**")
+            st.write(ai_response)
+            return pd.DataFrame()  # Return empty for AI text responses
         
-        st.info("Trying basic pattern matching as fallback...")
-        return basic_fallback_processing(data, query, main_column)
+        return None
         
     except Exception as e:
-        st.error(f"Error processing query: {e}")
+        st.error(f"Error: {e}")
         return None
 
-def get_data_context(data):
-    context = {
-        "columns": list(data.columns),
-        "dtypes": {col: str(data[col].dtype) for col in data.columns},
-        "shape": data.shape,
-        "sample_values": {},
-        "numeric_columns": [],
-        "categorical_columns": []
-    }
+def optimized_pattern_matching(data: pd.DataFrame, query: str) -> Optional[pd.DataFrame]:
+    """Fast pattern matching for common queries - much faster than AI."""
+    query_lower = query.lower()
     
-    for col in data.columns:
-        unique_vals = data[col].dropna().unique()
-        if len(unique_vals) <= 20:
-            context["sample_values"][col] = list(unique_vals)
-        else:
-            context["sample_values"][col] = list(unique_vals[:10]) + ["...more values"]
-        
-        if pd.api.types.is_numeric_dtype(data[col]):
-            context["numeric_columns"].append(col)
-        else:
-            context["categorical_columns"].append(col)
-    
-    return context
-
-def extract_structured_data(ai_response, data, original_query):
-    try:
-        response_lower = ai_response.lower()
-        
-        if any(phrase in response_lower for phrase in ['where', 'filter', 'records', 'rows']):
-            filter_query = f"""
-            Based on this data analysis response: "{ai_response}"
-            And the original query: "{original_query}"
-            
-            Generate Python pandas filtering code that would extract the relevant records.
-            Only return the filtering condition(s) as Python code that can be applied to a DataFrame called 'data'.
-            
-            Examples:
-            - data[data['column'] == 'value']
-            - data[(data['col1'] > 5) & (data['col2'] == 'text')]
-            - data[data['column'].str.contains('pattern', case=False)]
-            
-            Available columns: {list(data.columns)}
-            """
-            
-            filter_code_response = query_gemini_simple(filter_query)
-            
-            if filter_code_response and "data[" in filter_code_response:
+    # Fast numeric filtering
+    if any(op in query_lower for op in ['>', '<', '>=', '<=', '==', '!=']):
+        for col in data.columns:
+            if pd.api.types.is_numeric_dtype(data[col]) or col.lower() in query_lower:
+                # Extract numeric comparisons
                 import re
-                filter_match = re.search(r'data\[(.*?)\]', filter_code_response)
-                if filter_match:
-                    filter_expr = filter_match.group(1)
-                    try:
-                        filtered_data = data.query(filter_expr) if '.' not in filter_expr else eval(f"data[{filter_expr}]")
-                        return filtered_data
-                    except:
-                        pass
-        
-        return None
-    except:
-        return None
+                patterns = [
+                    (r'(\w+)\s*>\s*(\d+\.?\d*)', lambda m: data[data[m.group(1)] > float(m.group(2))]),
+                    (r'(\w+)\s*<\s*(\d+\.?\d*)', lambda m: data[data[m.group(1)] < float(m.group(2))]),
+                    (r'(\w+)\s*>=\s*(\d+\.?\d*)', lambda m: data[data[m.group(1)] >= float(m.group(2))]),
+                    (r'(\w+)\s*<=\s*(\d+\.?\d*)', lambda m: data[data[m.group(1)] <= float(m.group(2))]),
+                ]
+                
+                for pattern, func in patterns:
+                    match = re.search(pattern, query_lower)
+                    if match and match.group(1) in [c.lower() for c in data.columns]:
+                        col_name = next(c for c in data.columns if c.lower() == match.group(1))
+                        try:
+                            # Convert to numeric if needed
+                            if data[col_name].dtype == 'object':
+                                data[col_name] = pd.to_numeric(data[col_name], errors='coerce')
+                            
+                            if '>' in query_lower:
+                                return data[data[col_name] > float(match.group(2))]
+                            elif '<' in query_lower:
+                                return data[data[col_name] < float(match.group(2))]
+                            elif '>=' in query_lower:
+                                return data[data[col_name] >= float(match.group(2))]
+                            elif '<=' in query_lower:
+                                return data[data[col_name] <= float(match.group(2))]
+                        except:
+                            continue
+    
+    # Fast text filtering
+    if any(word in query_lower for word in ['contains', 'like', 'has', 'with']):
+        for col in data.columns:
+            if data[col].dtype == 'object':
+                try:
+                    words = query_lower.split()
+                    for word in words:
+                        if len(word) > 3:  # Skip short words
+                            matches = data[data[col].astype(str).str.contains(word, case=False, na=False)]
+                            if not matches.empty:
+                                return matches
+                except:
+                    continue
+    
+    # Fast counting
+    if any(word in query_lower for word in ['count', 'how many']):
+        return pd.DataFrame({'count': [len(data)]})
+    
+    return None
 
-def basic_fallback_processing(data, query, main_column):
-    try:
-        query_lower = query.lower()
-        
-        if main_column in data.columns:
-            words = query_lower.split()
-            for word in words:
-                if len(word) > 2:
-                    matches = data[data[main_column].astype(str).str.lower().str.contains(word, na=False)]
-                    if not matches.empty:
-                        st.write(f"Found {len(matches)} records containing '{word}' in {main_column}")
-                        return matches
-        
-        return pd.DataFrame()
-        
-    except Exception as e:
-        st.error(f"Fallback processing error: {e}")
-        return pd.DataFrame()
+def get_data_context(data: pd.DataFrame) -> dict:
+    """Minimal context for faster processing."""
+    return {
+        "columns": list(data.columns),
+        "shape": data.shape,
+        "dtypes": {col: str(data[col].dtype) for col in data.columns[:10]}  # Limit to first 10 columns
+    }
 
-def query_gemini_simple(query):
+def query_gemini_simple(query: str) -> Optional[str]:
+    """Simple Gemini query for filter generation."""
     try:
         api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
         if api_key:
             return query_gemini(query, api_key)
         return None
     except:
+        return None
         return None
 
 def web_search(query):
@@ -827,108 +794,55 @@ def create_auto_chart(data):
     
     return None
 
-def query_gemini_ai(query, data):
+def query_gemini_ai(query: str, data: pd.DataFrame) -> Optional[str]:
+    """Streamlined AI query processing."""
     try:
-        # Generate hashes for caching
-        data_hash = generate_data_hash(data)
-        data_context = get_data_context(data)
-        query_hash = generate_query_hash(query, data_context)
-        
-        # Check cache first
-        cached_result = cached_ai_response(query_hash, data_hash)
-        if cached_result:
-            st.success("⚡ Retrieved from cache (faster response)")
-            return cached_result
-        
-        # If not in cache, make API call
-        response = query_gemini(query, GEMINI_API_KEY, data)
-        
-        # Store in cache for future use
-        if response:
-            cached_ai_response(query_hash, data_hash)
+        api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            return "Gemini API key not configured"
             
+        # Create focused prompt for faster processing
+        context = f"""Analyze this query for a dataset with {len(data)} rows and columns: {', '.join(data.columns[:10])}.
+Query: {query}
+
+Provide a concise analysis or filtering suggestion."""
+        
+        response = query_gemini(context, api_key)
         return response
+        
     except Exception as e:
-        st.error(f"Error querying Gemini: {e}")
-        return None
+        return f"AI Error: {str(e)}"
 
 if __name__ == "__main__":
     try:
-        # Set page configuration for better UX
         st.set_page_config(
             page_title="AI Data Analytics Platform",
             page_icon="🤖",
             layout="wide",
-            initial_sidebar_state="collapsed",
-            menu_items={
-                'Get help': 'https://github.com/ark5234/AI-Agent-Project',
-                'Report a bug': 'https://github.com/ark5234/AI-Agent-Project/issues',
-                'About': """
-                # AI Data Analytics Platform
-                Transform your data into insights with natural language queries.
-                
-                **Live Demo**: https://ai-data-agent.streamlit.app/
-                **GitHub**: https://github.com/ark5234/AI-Agent-Project
-                **Developer**: @ark5234
-                """
-            }
+            initial_sidebar_state="collapsed"
         )
         
-        # Add custom CSS for better styling
+        # Minimal clean styling
         st.markdown("""
         <style>
-        .main > div {
-            padding-top: 1rem;
-        }
-        .stAlert > div {
-            border-radius: 10px;
-        }
-        .metric-card {
-            background-color: #f0f2f6;
-            padding: 1rem;
-            border-radius: 10px;
-            margin: 0.5rem 0;
-        }
-        .footer {
-            position: fixed;
-            left: 0;
-            bottom: 0;
-            width: 100%;
-            background-color: #0e1117;
-            color: #fafafa;
-            text-align: center;
-            padding: 10px 0;
-            font-size: 0.8rem;
-            z-index: 999;
-        }
-        .footer a {
-            color: #1f77b4;
-            text-decoration: none;
-        }
+        .main > div { padding-top: 1rem; }
+        .stAlert > div { border-radius: 10px; }
         </style>
         """, unsafe_allow_html=True)
         
         main()
         
-        # Add footer
+        # Simple footer
         st.markdown("---")
         st.markdown("""
-        <div style='text-align: center; padding: 2rem 0; color: #666;'>
-            <p>🤖 <strong>AI Data Analytics Platform</strong> | 
-            Powered by <a href='https://ai.google.dev' target='_blank'>Google Gemini AI</a> | 
-            Built with <a href='https://streamlit.io' target='_blank'>Streamlit</a></p>
-            <p>
-                <a href='https://github.com/ark5234/AI-Agent-Project' target='_blank'>GitHub</a> | 
-                <a href='https://ai-data-agent.streamlit.app/' target='_blank'>Live Demo</a> | 
-                Made by <a href='https://github.com/ark5234' target='_blank'>@ark5234</a>
-            </p>
+        <div style='text-align: center; padding: 1rem; color: #666;'>
+            🤖 AI Data Analytics Platform | 
+            <a href='https://github.com/ark5234/AI-Agent-Project' target='_blank'>GitHub</a> | 
+            <a href='https://ai-data-agent.streamlit.app/' target='_blank'>Live Demo</a>
         </div>
         """, unsafe_allow_html=True)
         
     except Exception as e:
-        st.error("🚨 Critical Application Error")
-        st.error(f"The application encountered an unexpected error: {str(e)}")
-        st.info("Please refresh the page and try again. If the problem persists, contact support.")
-        
-        if st.checkbox("🔍 Show technical details"):
-            st.code(str(e), language="python")
+        st.error(f"Application Error: {str(e)}")
+        if st.checkbox("Show details"):
+            st.code(str(e))

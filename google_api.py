@@ -1,4 +1,5 @@
 import os
+from typing import Optional, List, Any
 
 try:
     import requests
@@ -18,7 +19,7 @@ except ImportError:
     def build(*args, **kwargs):
         return None
 
-def authenticate_google_sheets():
+def authenticate_google_sheets() -> Optional[Any]:
     """
     Authenticate with Google Sheets using API key instead of OAuth2.
     This is simpler and works better for public sheets.
@@ -51,7 +52,7 @@ def authenticate_google_sheets():
         print(f"An error occurred during authentication: {e}")
         return None
 
-def read_google_sheet_public(spreadsheet_id, range_name, api_key):
+def read_google_sheet_public(spreadsheet_id: str, range_name: str, api_key: str) -> Optional[List[List[str]]]:
     """
     Read Google Sheet data using direct API calls for public sheets.
     This method works without OAuth2 authentication.
@@ -85,10 +86,13 @@ def read_google_sheet_public(spreadsheet_id, range_name, api_key):
         print(f"An error occurred: {e}")
         return None
 
-def read_google_sheet(service, spreadsheet_id, range_name):
+def read_google_sheet(service: Any, spreadsheet_id: str, range_name: str) -> Optional[List[List[str]]]:
     """
     Read data from Google Sheets.
     Now supports both service-based and direct API approaches.
+    
+    Returns:
+        list: List of rows from the sheet, or None if error
     """
     try:
         # Try service-based approach first
@@ -129,7 +133,7 @@ def read_google_sheet(service, spreadsheet_id, range_name):
             print(f"An error occurred: {e}")
         return None
 
-def extract_sheet_id_from_url(url):
+def extract_sheet_id_from_url(url: str) -> Optional[str]:
     """
     Extract the spreadsheet ID from a Google Sheets URL.
     """

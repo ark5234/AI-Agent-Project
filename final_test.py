@@ -30,12 +30,18 @@ def test_user_sheet():
     sheet_id = extract_sheet_id_from_url(sheet_url)
     print(f"🆔 Sheet ID: {sheet_id}")
     
+    # Check if sheet_id was extracted successfully
+    if not sheet_id:
+        print("❌ Failed to extract sheet ID from URL")
+        return False
+    
     # Read data
     range_name = f"{correct_sheet_name}!A:Z"
     print(f"📥 Reading range: {range_name}")
     
     try:
         values = read_google_sheet_public(sheet_id, range_name, api_key)
+        
         
         if values and len(values) > 0:
             print(f"✅ Successfully loaded {len(values)} rows!")

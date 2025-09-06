@@ -79,7 +79,7 @@ A comprehensive artificial intelligence platform for automated data analysis, qu
 
 2. **Install Dependencies**
    ```bash
-   pip install -r apps/streamlit-app/requirements.txt
+   pip install -r requirements.txt
    ```
 
 3. **Environment Configuration**
@@ -97,7 +97,7 @@ A comprehensive artificial intelligence platform for automated data analysis, qu
 
 5. **Run the Application**
    ```bash
-   streamlit run apps/streamlit-app/main.py
+   streamlit run main.py
    ```
 
 ### Streamlit Cloud Deployment
@@ -108,7 +108,7 @@ A comprehensive artificial intelligence platform for automated data analysis, qu
 2. **Deploy to Streamlit Cloud**
    - Visit [Streamlit Cloud](https://streamlit.io/cloud)
    - Connect your GitHub repository
-   - Select `apps/streamlit-app/main.py` as the main file
+   - Select `main.py` as the main file
 
 3. **Configure Secrets**
    In your Streamlit Cloud app settings, add secrets in TOML format:
@@ -163,19 +163,21 @@ A comprehensive artificial intelligence platform for automated data analysis, qu
 
 ```
 AI-Agent-Project/
-├── apps/
-│   └── streamlit-app/
-│       ├── main.py              # Primary application logic
-│       ├── gemini_api.py        # AI integration module
-│       ├── google_api.py        # Google services integration
-│       ├── requirements.txt     # Python dependencies
-│       └── credentials.json     # Google API credentials
+├── main.py                     # Primary application logic
+├── gemini_api.py              # AI integration module
+├── google_api.py              # Google services integration  
+├── final_test.py              # Integration testing
+├── requirements.txt           # Python dependencies
+├── runtime.txt                # Python version for deployment
 ├── .streamlit/
-│   └── secrets.toml            # Cloud deployment secrets template
-├── .env                        # Local environment variables
-├── .gitignore                  # Git ignore patterns
-├── LICENSE                     # MIT license
-└── README.md                   # This documentation
+│   └── config.toml            # Streamlit configuration
+├── .env                       # Local environment variables
+├── .env.example               # Environment template
+├── .gitignore                 # Git ignore patterns
+├── LICENSE                    # MIT license
+├── README.md                  # This documentation
+├── GOOGLE_SHEETS_SETUP.md     # Google Sheets integration guide
+└── STREAMLIT_DEPLOYMENT.md    # Deployment instructions
 ```
 
 ## API Reference
