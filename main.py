@@ -229,7 +229,7 @@ def main():
             Transform your data into insights with natural language queries
         </p>
         <p style='color: #888; font-size: 0.9rem;'>
-            🚀 <a href='https://ai-data-agent.streamlit.app/' target='_blank' style='text-decoration: none;'>
+            🚀 <a href='https://ai-data-analytics-agent.streamlit.app/' target='_blank' style='text-decoration: none;'>
                 Live Demo Available
             </a> | 
             📊 Support CSV, Excel, JSON & Google Sheets | 
@@ -838,7 +838,7 @@ if __name__ == "__main__":
         <div style='text-align: center; padding: 1rem; color: #666;'>
             🤖 AI Data Analytics Platform | 
             <a href='https://github.com/ark5234/AI-Agent-Project' target='_blank'>GitHub</a> | 
-            <a href='https://ai-data-agent.streamlit.app/' target='_blank'>Live Demo</a>
+            <a href='https://ai-data-analytics-agent.streamlit.app/' target='_blank'>Live Demo</a>
         </div>
         """, unsafe_allow_html=True)
         
