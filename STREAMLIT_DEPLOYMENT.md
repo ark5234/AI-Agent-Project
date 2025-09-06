@@ -1,8 +1,29 @@
 # Streamlit Cloud Deployment Instructions
 
-## 🚀 Setting Up Secrets in Streamlit Cloud
+## � IMPORTANT: Updated File Path
 
-### Step 1: Access Your App Settings
+**After project restructure, the main file path has changed:**
+- ❌ Old path: `apps/streamlit-app/main.py`
+- ✅ New path: `main.py`
+
+**If your deployment is failing, update the main file path in Streamlit Cloud settings!**
+
+## 🚀 Setting Up Your Streamlit Cloud App
+
+### Step 1: Deploy New App or Update Existing
+1. Go to [Streamlit Cloud](https://share.streamlit.io/)
+2. **For New Deployment:**
+   - Click "New app"
+   - Repository: `ark5234/AI-Agent-Project`
+   - Branch: `master`
+   - **Main file path**: `main.py` (NOT `apps/streamlit-app/main.py`)
+3. **For Existing App:**
+   - Find your app in the dashboard
+   - Click "⚙️ Settings"
+   - Update main file path to `main.py`
+   - Save and redeploy
+
+### Step 2: Add Your API Keys
 1. Go to [Streamlit Cloud](https://share.streamlit.io/)
 2. Find your deployed app: `AI-Agent-Project`
 3. Click the "⚙️" (Settings) button
